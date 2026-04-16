@@ -57,7 +57,7 @@ struct Serve: AsyncParsableCommand {
     )
 
     @Option(name: .shortAndLong, help: "Hostname to bind to.")
-    var hostname: String = "127.0.0.1"
+    var hostname: String = "localhost"
 
     @Option(name: .shortAndLong, help: "Port to listen on.")
     var port: Int = 8080
