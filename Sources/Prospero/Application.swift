@@ -114,7 +114,7 @@ struct Serve: AsyncParsableCommand {
         }
 
         // Login page (uses library component in Prospero's layout)
-        router.get("/login") { request, context -> HTML in
+        router.get("/login") { request, context -> PageLayout in
             let returnURL = request.uri.queryParameters.get("return")
             return PageLayout(title: "Sign In", includeAuthScript: true) {
                 LoginView(
@@ -122,18 +122,18 @@ struct Serve: AsyncParsableCommand {
                     returnURL: returnURL,
                     pathPrefix: authConfig.pathPrefix
                 )
-            }.html
+            }
         }
 
         // Invitation/registration page
-        router.get("/invite/:token") { request, context -> HTML in
+        router.get("/invite/:token") { request, context -> PageLayout in
             let token = context.parameters.get("token") ?? ""
             return PageLayout(title: "Create Account", includeAuthScript: true) {
                 RegistrationView(
                     invitationToken: token,
                     pathPrefix: authConfig.pathPrefix
                 )
-            }.html
+            }
         }
 
         // Auth API routes (begin-login, finish-login, etc.)
@@ -153,7 +153,7 @@ struct Serve: AsyncParsableCommand {
         installProfileRoutes(on: authed, db: db) { vm, context in
             PageLayout(title: "Profile", pageContext: PageContext(from: context)) {
                 ProfileView(viewModel: vm)
-            }.html
+            }
         }
 
         // Admin routes (library routes + Prospero layout)
@@ -170,12 +170,12 @@ struct Serve: AsyncParsableCommand {
             renderUsers: { users, context in
                 PageLayout(title: "Users", pageContext: PageContext(from: context)) {
                     AdminUsersView(users: users)
-                }.html
+                }
             },
             renderInvitations: { invitations, baseURL, context in
                 PageLayout(title: "Invitations", pageContext: PageContext(from: context)) {
                     AdminInvitationsView(invitations: invitations, baseURL: baseURL)
-                }.html
+                }
             }
         )
 

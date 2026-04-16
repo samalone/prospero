@@ -1,9 +1,10 @@
+import Hummingbird
 import HummingbirdAuth
 import HummingbirdAuthViews
 import Plot
 import PlotHTMX
 
-struct PageLayout {
+struct PageLayout: ResponseGenerator {
     var title: String
     var pageContext: PageContext = PageContext()
     var includeAuthScript: Bool = false
@@ -110,5 +111,9 @@ struct PageLayout {
                 )
             )
         )
+    }
+
+    func response(from request: Request, context: some RequestContext) throws -> Response {
+        htmlResponse(html.render())
     }
 }
