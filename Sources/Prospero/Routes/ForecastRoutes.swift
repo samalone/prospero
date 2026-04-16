@@ -12,19 +12,30 @@ func addForecastRoutes(
     let meteoClient = OpenMeteoClient()
     let matcher = PatternMatcher()
 
-    router.get("/patterns/:id/forecast") { _, context -> HTML in
+    router.get("/patterns/:id/forecast") { request, context -> HTML in
         guard let id = context.parameters.get("id", as: UUID.self),
               let pattern = try await ActivityPattern.find(id, on: db) else {
             throw HTTPError(.notFound)
         }
+
+        let sortParam = request.uri.queryParameters.get("sort") ?? "quality"
+        let sortByQuality = sortParam == "quality"
 
         let conditions = try await meteoClient.fetchHourlyForecast(
             latitude: pattern.latitude,
             longitude: pattern.longitude
         )
 
-        let windows = matcher.findWindows(pattern: pattern, conditions: conditions)
+        var windows = matcher.findWindows(pattern: pattern, conditions: conditions)
+        if sortByQuality {
+            windows.sort { $0.quality > $1.quality }
+        }
+        // Chronological is the default from findWindows
 
-        return ForecastResultsPage(pattern: pattern, windows: windows).html
+        return ForecastResultsPage(
+            pattern: pattern,
+            windows: windows,
+            sortByQuality: sortByQuality
+        ).html
     }
 }

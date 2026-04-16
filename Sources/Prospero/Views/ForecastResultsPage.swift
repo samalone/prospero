@@ -4,6 +4,11 @@ import Plot
 struct ForecastResultsPage {
     var pattern: ActivityPattern
     var windows: [MatchWindow]
+    var sortByQuality: Bool = false
+
+    private var patternID: String {
+        pattern.id?.uuidString ?? ""
+    }
 
     var html: HTML {
         PageLayout(title: "\(pattern.name) Forecast") {
@@ -27,8 +32,20 @@ struct ForecastResultsPage {
                 }
                 .class("empty-state")
             } else {
-                Paragraph("\(windows.count) matching \(windows.count == 1 ? "window" : "windows") found:")
-                    .class("result-count")
+                Div {
+                    Paragraph("\(windows.count) matching \(windows.count == 1 ? "window" : "windows") found")
+                        .class("result-count")
+
+                    Div {
+                        Element(name: "span") { Text("Sort by: ") }.class("sort-label")
+                        Link("Date", url: "/patterns/\(patternID)/forecast?sort=date")
+                            .class(sortByQuality ? "sort-option" : "sort-option active")
+                        Link("Quality", url: "/patterns/\(patternID)/forecast?sort=quality")
+                            .class(sortByQuality ? "sort-option active" : "sort-option")
+                    }
+                    .class("sort-controls")
+                }
+                .class("results-header")
 
                 Div {
                     for window in windows {

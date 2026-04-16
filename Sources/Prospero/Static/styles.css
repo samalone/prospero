@@ -236,9 +236,46 @@ button[type="submit"] {
 }
 
 /* Forecast Results */
-.result-count {
+.results-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
     margin-bottom: 1rem;
+}
+
+.result-count {
     font-weight: 500;
+}
+
+.sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.sort-label {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+
+.sort-option {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    text-decoration: none;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+}
+
+.sort-option:hover {
+    background: var(--bg);
+    color: var(--text);
+}
+
+.sort-option.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
 }
 
 .window-list {
@@ -255,10 +292,33 @@ button[type="submit"] {
     padding: 1.5rem;
 }
 
+@media (min-width: 640px) {
+    .window-card {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0 2rem;
+        align-items: start;
+    }
+}
+
 .window-header {
     margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border);
+}
+
+@media (min-width: 640px) {
+    .window-header {
+        margin-bottom: 0;
+        padding-right: 2rem;
+        border-right: 1px solid var(--border);
+        border-bottom: none;
+    }
+}
+
+@media (max-width: 639px) {
+    .window-header {
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--border);
+    }
 }
 
 .window-time {
@@ -283,23 +343,32 @@ button[type="submit"] {
 .window-conditions {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0.5rem;
+    gap: 0.25rem 2rem;
+}
+
+@media (min-width: 640px) {
+    .window-conditions {
+        padding-top: 0.25rem;
+    }
 }
 
 .condition-row {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
     padding: 0.25rem 0;
 }
 
 .condition-label {
     color: var(--text-muted);
     font-size: 0.875rem;
+    text-align: right;
 }
 
 .condition-value {
     font-weight: 500;
     font-size: 0.875rem;
+    text-align: left;
 }
 
 .page-actions {
