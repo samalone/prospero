@@ -1,5 +1,5 @@
 {
-  "originHash" : "09dfcb730fdef6e954f3f5f77bfe7af621ebcb69df0b48882925ebb2288c9c91",
+  "originHash" : "a58b0e64e121e548bf122b56fccbeb6c17accdb7cb10f6ce727ad8abfd584009",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -71,6 +71,15 @@
       "state" : {
         "branch" : "samalone/all-fixes",
         "revision" : "50ab6ce3865866b0a3f30f345f5f956e6f5ea17a"
+      }
+    },
+    {
+      "identity" : "plot-htmx",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/samalone/plot-htmx.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "601877ddb43282472ccd8298c5b2a893b891176c"
       }
     },
     {
