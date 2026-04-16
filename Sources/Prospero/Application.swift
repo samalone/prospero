@@ -4,6 +4,8 @@ import FluentPostgresDriver
 import FluentSQLiteDriver
 import Foundation
 import Hummingbird
+import HummingbirdAuth
+import HummingbirdAuthViews
 import HummingbirdFluent
 import Logging
 import Plot
@@ -19,7 +21,6 @@ struct ProsperoCommand: AsyncParsableCommand {
 }
 
 /// Configure the Fluent database from the DATABASE_URL environment variable.
-/// If DATABASE_URL is set, uses PostgreSQL; otherwise falls back to SQLite for local dev.
 func buildFluent(logger: Logger) -> Fluent {
     let fluent = Fluent(logger: logger)
 
@@ -42,8 +43,12 @@ func buildFluent(logger: Logger) -> Fluent {
 }
 
 func addMigrations(to fluent: Fluent) async {
+    // App tables first (users must exist before auth FK references)
+    await fluent.migrations.add(CreateUsers())
     await fluent.migrations.add(CreateActivityPatterns())
     await fluent.migrations.add(AddTideHeightMin())
+    // Auth library tables
+    await addAuthMigrations(to: fluent, userTable: ProsperoUser.schema)
 }
 
 struct Serve: AsyncParsableCommand {
@@ -70,12 +75,36 @@ struct Serve: AsyncParsableCommand {
             try await fluent.migrate()
         }
 
-        let router = Router()
+        let router = Router(context: AppRequestContext.self)
         let db = fluent.db()
+
+        // Auth configuration
+        let authConfig = AuthConfiguration<ProsperoUser>(
+            passkey: PasskeyConfiguration(
+                relyingPartyID: ProcessInfo.processInfo.environment["WEBAUTHN_RP_ID"] ?? "localhost",
+                relyingPartyName: "Prospero",
+                relyingPartyOrigin: ProcessInfo.processInfo.environment["WEBAUTHN_RP_ORIGIN"]
+                    ?? "http://localhost:\(port)"
+            ),
+            session: SessionConfiguration(
+                cookieName: "prospero-session",
+                secureCookie: ProcessInfo.processInfo.environment["DATABASE_URL"] != nil  // secure in prod
+            ),
+            invitations: InvitationConfiguration(),
+            callbacks: AuthCallbacks(
+                postLoginRedirect: { _ in "/patterns" }
+            )
+        )
 
         // Middleware
         router.add(middleware: LogRequestsMiddleware(.info))
         router.add(middleware: ErrorLoggingMiddleware(logger: logger))
+        router.add(middleware: SessionMiddleware<AppRequestContext>(
+            db: db, config: authConfig.session
+        ))
+        router.add(middleware: AuthRedirectMiddleware<AppRequestContext>(
+            loginPath: authConfig.loginPagePath
+        ))
 
         if let staticPath = Bundle.module.path(forResource: "Static", ofType: nil) {
             router.add(middleware: FileMiddleware(staticPath, logger: logger))
@@ -83,7 +112,33 @@ struct Serve: AsyncParsableCommand {
             logger.warning("Static resources directory not found")
         }
 
-        // Routes
+        // Login page (uses library component in Prospero's layout)
+        router.get("/login") { request, context -> HTML in
+            let returnURL = request.uri.queryParameters.get("return")
+            return PageLayout(title: "Sign In", includeAuthScript: true) {
+                LoginView(
+                    errorMessage: context.flashMessages.first(where: { $0.level == .error })?.text,
+                    returnURL: returnURL,
+                    pathPrefix: authConfig.pathPrefix
+                )
+            }.html
+        }
+
+        // Invitation/registration page
+        router.get("/invite/:token") { request, context -> HTML in
+            let token = context.parameters.get("token") ?? ""
+            return PageLayout(title: "Create Account", includeAuthScript: true) {
+                RegistrationView(
+                    invitationToken: token,
+                    pathPrefix: authConfig.pathPrefix
+                )
+            }.html
+        }
+
+        // Auth API routes (begin-login, finish-login, etc.)
+        installAuthRoutes(on: router, db: db, config: authConfig, logger: logger)
+
+        // Public routes (patterns and forecasts — no auth for now during development)
         addPatternRoutes(to: router, db: db, logger: logger)
         addForecastRoutes(to: router, db: db, logger: logger)
 

@@ -5,7 +5,7 @@ import Logging
 import Plot
 
 func addForecastRoutes(
-    to router: Router<BasicRequestContext>,
+    to router: Router<AppRequestContext>,
     db: Database,
     logger: Logger
 ) {

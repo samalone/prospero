@@ -4,7 +4,7 @@ import Hummingbird
 import Plot
 
 func addPatternRoutes(
-    to router: Router<BasicRequestContext>,
+    to router: Router<AppRequestContext>,
     db: Database,
     logger: Logging.Logger
 ) {

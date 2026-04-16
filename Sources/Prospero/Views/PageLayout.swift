@@ -1,8 +1,10 @@
+import HummingbirdAuthViews
 import Plot
 
 struct PageLayout {
     var title: String
     var stylesheets: [String] = []
+    var includeAuthScript: Bool = false
     @ComponentBuilder var content: () -> Component
 
     var html: HTML {
@@ -13,7 +15,8 @@ struct PageLayout {
                 .title("\(title) — Prospero"),
                 .stylesheet("/styles.css"),
                 .forEach(stylesheets) { .stylesheet($0) },
-                .script(.src("/htmx.min.js"))
+                .script(.src("/htmx.min.js")),
+                .if(includeAuthScript, .raw(WebAuthnScript.scriptTag))
             ),
             .body(
                 .header(
