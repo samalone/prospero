@@ -47,6 +47,7 @@ func addMigrations(to fluent: Fluent) async {
     await fluent.migrations.add(CreateUsers())
     await fluent.migrations.add(CreateActivityPatterns())
     await fluent.migrations.add(AddTideHeightMin())
+    await fluent.migrations.add(AddUserToPatterns())
     // Auth library tables
     await addAuthMigrations(to: fluent, userTable: ProsperoUser.schema)
 }
@@ -138,9 +139,15 @@ struct Serve: AsyncParsableCommand {
         // Auth API routes (begin-login, finish-login, etc.)
         installAuthRoutes(on: router, db: db, config: authConfig, logger: logger)
 
-        // Public routes (patterns and forecasts — no auth for now during development)
-        addPatternRoutes(to: router, db: db, logger: logger)
-        addForecastRoutes(to: router, db: db, logger: logger)
+        // Redirect root to patterns
+        router.get("/") { _, _ -> Response in
+            .redirect(to: "/patterns")
+        }
+
+        // Authenticated routes (patterns require login)
+        let authed = router.group(context: AuthenticatedContext<AppRequestContext>.self)
+        addPatternRoutes(to: authed, db: db, logger: logger)
+        addForecastRoutes(to: authed, db: db, logger: logger)
 
         var app = Application(
             router: router,

@@ -1,20 +1,21 @@
 import FluentKit
 import Foundation
 import Hummingbird
+import HummingbirdAuth
 import Plot
 
+typealias AuthedContext = AuthenticatedContext<AppRequestContext>
+
 func addPatternRoutes(
-    to router: Router<AppRequestContext>,
+    to router: RouterGroup<AuthedContext>,
     db: Database,
     logger: Logging.Logger
 ) {
-    // List all patterns
-    router.get("/") { _, _ -> Response in
-        .redirect(to: "/patterns")
-    }
-
-    router.get("/patterns") { _, _ -> HTML in
+    // List current user's patterns
+    router.get("/patterns") { _, context -> HTML in
+        let userID = context.user.id!
         let patterns = try await ActivityPattern.query(on: db)
+            .filter(\.$userID == userID)
             .sort(\.$name)
             .all()
         return PatternListPage(patterns: patterns).html
@@ -25,20 +26,25 @@ func addPatternRoutes(
         PatternFormPage().html
     }
 
-    // Create pattern
+    // Create pattern (assigned to current user)
     router.post("/patterns") { request, context -> Response in
         let input = try await URLEncodedFormDecoder().decode(
             PatternInput.self, from: request, context: context
         )
         let pattern = input.toModel()
+        pattern.userID = context.user.id
         try await pattern.save(on: db)
         return .redirect(to: "/patterns", type: .normal)
     }
 
-    // Edit pattern form
+    // Edit pattern form (only if owned by current user)
     router.get("/patterns/:id/edit") { _, context -> HTML in
         guard let id = context.parameters.get("id", as: UUID.self),
-              let pattern = try await ActivityPattern.find(id, on: db) else {
+              let pattern = try await ActivityPattern.query(on: db)
+                .filter(\.$id == id)
+                .filter(\.$userID == context.user.id!)
+                .first()
+        else {
             throw HTTPError(.notFound)
         }
         return PatternFormPage(pattern: pattern).html
@@ -47,7 +53,11 @@ func addPatternRoutes(
     // Update pattern
     router.post("/patterns/:id") { request, context -> Response in
         guard let id = context.parameters.get("id", as: UUID.self),
-              let pattern = try await ActivityPattern.find(id, on: db) else {
+              let pattern = try await ActivityPattern.query(on: db)
+                .filter(\.$id == id)
+                .filter(\.$userID == context.user.id!)
+                .first()
+        else {
             throw HTTPError(.notFound)
         }
 
@@ -62,7 +72,11 @@ func addPatternRoutes(
     // Delete pattern
     router.post("/patterns/:id/delete") { _, context -> Response in
         guard let id = context.parameters.get("id", as: UUID.self),
-              let pattern = try await ActivityPattern.find(id, on: db) else {
+              let pattern = try await ActivityPattern.query(on: db)
+                .filter(\.$id == id)
+                .filter(\.$userID == context.user.id!)
+                .first()
+        else {
             throw HTTPError(.notFound)
         }
         try await pattern.delete(on: db)

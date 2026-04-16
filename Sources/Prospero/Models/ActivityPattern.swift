@@ -16,6 +16,9 @@ final class ActivityPattern: Model, @unchecked Sendable {
     @ID(key: .id)
     var id: UUID?
 
+    @OptionalField(key: "user_id")
+    var userID: UUID?
+
     @Field(key: "name")
     var name: String
 

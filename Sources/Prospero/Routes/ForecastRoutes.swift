@@ -5,7 +5,7 @@ import Logging
 import Plot
 
 func addForecastRoutes(
-    to router: Router<AppRequestContext>,
+    to router: RouterGroup<AuthedContext>,
     db: Database,
     logger: Logger
 ) {
@@ -16,7 +16,11 @@ func addForecastRoutes(
 
     router.get("/patterns/:id/forecast") { request, context -> HTML in
         guard let id = context.parameters.get("id", as: UUID.self),
-              let pattern = try await ActivityPattern.find(id, on: db) else {
+              let pattern = try await ActivityPattern.query(on: db)
+                .filter(\.$id == id)
+                .filter(\.$userID == context.user.id!)
+                .first()
+        else {
             throw HTTPError(.notFound)
         }
 
