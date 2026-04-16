@@ -59,13 +59,17 @@ struct PatternCard: Component {
                 }
 
                 if let max = pattern.windSpeedMax {
-                    ConstraintBadge(label: "Wind", value: "≤\(Int(max)) mph")
+                    ConstraintBadge(label: "Wind", value: "≤\(Int(max)) kn")
                 } else if let min = pattern.windSpeedMin {
-                    ConstraintBadge(label: "Wind", value: "≥\(Int(min)) mph")
+                    ConstraintBadge(label: "Wind", value: "≥\(Int(min)) kn")
                 }
 
                 if let max = pattern.cloudCoverMax {
                     ConstraintBadge(label: "Clouds", value: "≤\(Int(max))%")
+                }
+
+                if let min = pattern.tideHeightMin {
+                    ConstraintBadge(label: "Tide", value: "≥\(String(format: "%.1f", min)) ft")
                 }
 
                 ConstraintBadge(

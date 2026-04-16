@@ -71,6 +71,9 @@ final class ActivityPattern: Model, @unchecked Sendable {
     @Field(key: "tide_requirement")
     var tideRequirement: TideRequirement
 
+    @OptionalField(key: "tide_height_min")
+    var tideHeightMin: Double?
+
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 
@@ -97,7 +100,8 @@ final class ActivityPattern: Model, @unchecked Sendable {
         requiresDaylight: Bool = false,
         earliestHour: Int? = nil,
         latestHour: Int? = nil,
-        tideRequirement: TideRequirement = .any
+        tideRequirement: TideRequirement = .any,
+        tideHeightMin: Double? = nil
     ) {
         self.id = id
         self.name = name
@@ -117,5 +121,6 @@ final class ActivityPattern: Model, @unchecked Sendable {
         self.earliestHour = earliestHour
         self.latestHour = latestHour
         self.tideRequirement = tideRequirement
+        self.tideHeightMin = tideHeightMin
     }
 }

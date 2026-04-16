@@ -66,10 +66,10 @@ struct PatternFormPage {
                               placeholder: "20", max: "100")
 
                     Div {
-                        FormField(label: "Min Wind (mph)", name: "wind_speed_min", type: "number",
+                        FormField(label: "Min Wind (kn)", name: "wind_speed_min", type: "number",
                                   value: pattern?.windSpeedMin.map { String(Int($0)) },
                                   placeholder: "5")
-                        FormField(label: "Max Wind (mph)", name: "wind_speed_max", type: "number",
+                        FormField(label: "Max Wind (kn)", name: "wind_speed_max", type: "number",
                                   value: pattern?.windSpeedMax.map { String(Int($0)) },
                                   placeholder: "15")
                     }
@@ -127,6 +127,11 @@ struct PatternFormPage {
                         .attribute(named: "name", value: "tide_requirement")
                     }
                     .class("form-field")
+
+                    FormField(label: "Min Tide Height (ft MLLW)", name: "tide_height_min",
+                              type: "number",
+                              value: pattern?.tideHeightMin.map { String(format: "%.1f", $0) },
+                              placeholder: "e.g., 4.0", step: "0.1")
                 }
 
                 Div {

@@ -43,6 +43,7 @@ func buildFluent(logger: Logger) -> Fluent {
 
 func addMigrations(to fluent: Fluent) async {
     await fluent.migrations.add(CreateActivityPatterns())
+    await fluent.migrations.add(AddTideHeightMin())
 }
 
 struct Serve: AsyncParsableCommand {

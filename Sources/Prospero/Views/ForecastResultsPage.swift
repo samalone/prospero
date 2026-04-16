@@ -5,6 +5,7 @@ struct ForecastResultsPage {
     var pattern: ActivityPattern
     var windows: [MatchWindow]
     var sortByQuality: Bool = false
+    var hasTideData: Bool = false
 
     private var patternID: String {
         pattern.id?.uuidString ?? ""
@@ -49,7 +50,7 @@ struct ForecastResultsPage {
 
                 Div {
                     for window in windows {
-                        WindowCard(window: window, pattern: pattern)
+                        WindowCard(window: window, pattern: pattern, hasTideData: hasTideData)
                     }
                 }
                 .class("window-list")
@@ -66,6 +67,7 @@ struct ForecastResultsPage {
 struct WindowCard: Component {
     var window: MatchWindow
     var pattern: ActivityPattern
+    var hasTideData: Bool = false
 
     private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -108,12 +110,26 @@ struct WindowCard: Component {
                 )
                 ConditionRow(
                     label: "Wind",
-                    value: "\(Int(window.summary.windSpeedMin))–\(Int(window.summary.windSpeedMax)) mph"
+                    value: "\(Int(window.summary.windSpeedMin))–\(Int(window.summary.windSpeedMax)) kn"
                 )
                 ConditionRow(
                     label: "Cloud Cover",
                     value: "≤\(Int(window.summary.cloudCoverMax))%"
                 )
+                if hasTideData {
+                    if let lo = window.summary.tideHeightMin,
+                       let hi = window.summary.tideHeightMax {
+                        ConditionRow(
+                            label: "Tide",
+                            value: "\(String(format: "%.1f", lo))–\(String(format: "%.1f", hi)) ft \(formatTideStatuses(window.summary.tideStatuses))"
+                        )
+                    } else {
+                        ConditionRow(
+                            label: "Tide",
+                            value: formatTideStatuses(window.summary.tideStatuses)
+                        )
+                    }
+                }
             }
             .class("window-conditions")
         }
@@ -160,4 +176,12 @@ struct ConditionRow: Component {
         }
         .class("condition-row")
     }
+}
+
+/// Format a set of tide statuses into a human-readable summary.
+private func formatTideStatuses(_ statuses: Set<TideStatus>) -> String {
+    let ordered: [TideStatus] = [.rising, .high, .falling, .low]
+    let present = ordered.filter { statuses.contains($0) }
+    if present.isEmpty { return "N/A" }
+    return present.map { $0.rawValue.capitalized }.joined(separator: " \u{2192} ")
 }

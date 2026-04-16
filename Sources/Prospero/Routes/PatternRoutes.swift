@@ -90,6 +90,7 @@ struct PatternInput: Decodable {
     var earliest_hour: Int?
     var latest_hour: Int?
     var tide_requirement: String?
+    var tide_height_min: Double?
 
     func toModel() -> ActivityPattern {
         ActivityPattern(
@@ -109,7 +110,8 @@ struct PatternInput: Decodable {
             requiresDaylight: requires_daylight == "true",
             earliestHour: earliest_hour,
             latestHour: latest_hour,
-            tideRequirement: TideRequirement(rawValue: tide_requirement ?? "any") ?? .any
+            tideRequirement: TideRequirement(rawValue: tide_requirement ?? "any") ?? .any,
+            tideHeightMin: tide_height_min
         )
     }
 
@@ -131,6 +133,7 @@ struct PatternInput: Decodable {
         pattern.earliestHour = earliest_hour
         pattern.latestHour = latest_hour
         pattern.tideRequirement = TideRequirement(rawValue: tide_requirement ?? "any") ?? .any
+        pattern.tideHeightMin = tide_height_min
     }
 }
 

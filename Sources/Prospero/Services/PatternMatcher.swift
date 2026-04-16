@@ -23,6 +23,9 @@ struct ConditionsSummary: Sendable {
     var windSpeedMin: Double
     var windSpeedMax: Double
     var cloudCoverMax: Double
+    var tideStatuses: Set<TideStatus>
+    var tideHeightMin: Double?
+    var tideHeightMax: Double?
 }
 
 /// Groups contiguous qualifying hours into match windows.
@@ -122,6 +125,29 @@ struct PatternMatcher: Sendable {
             return false
         }
 
+        // Tide height constraint
+        if let minHeight = pattern.tideHeightMin {
+            guard let height = hour.tideHeight, height >= minHeight else {
+                return false
+            }
+        }
+
+        // Tide status constraint
+        switch pattern.tideRequirement {
+        case .any:
+            break
+        case .rising:
+            if hour.tideStatus != .rising { return false }
+        case .falling:
+            if hour.tideStatus != .falling { return false }
+        case .high:
+            if hour.tideStatus != .high { return false }
+        case .low:
+            if hour.tideStatus != .low { return false }
+        case .notLow:
+            if hour.tideStatus == .low { return false }
+        }
+
         return true
     }
 
@@ -209,7 +235,10 @@ struct PatternMatcher: Sendable {
             precipProbabilityMax: hours.map(\.precipProbability).max() ?? 0,
             windSpeedMin: hours.map(\.windSpeed).min() ?? 0,
             windSpeedMax: hours.map(\.windSpeed).max() ?? 0,
-            cloudCoverMax: hours.map(\.cloudCover).max() ?? 0
+            cloudCoverMax: hours.map(\.cloudCover).max() ?? 0,
+            tideStatuses: Set(hours.map(\.tideStatus)),
+            tideHeightMin: hours.compactMap(\.tideHeight).min(),
+            tideHeightMax: hours.compactMap(\.tideHeight).max()
         )
     }
 }

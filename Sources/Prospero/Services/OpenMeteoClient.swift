@@ -3,16 +3,18 @@ import Foundation
 import FoundationNetworking
 #endif
 
-/// Hourly weather conditions from Open-Meteo.
+/// Hourly weather conditions, enriched with tide status.
 struct HourlyConditions: Sendable {
     var date: Date
     var temperature: Double       // Fahrenheit
     var humidity: Double          // Percentage 0-100
     var precipProbability: Double // Percentage 0-100
-    var windSpeed: Double         // mph
-    var windGusts: Double         // mph
+    var windSpeed: Double         // knots
+    var windGusts: Double         // knots
     var cloudCover: Double        // Percentage 0-100
     var isDaylight: Bool
+    var tideStatus: TideStatus = .unknown
+    var tideHeight: Double?  // feet (MLLW datum), nil if no tide data
 }
 
 /// Client for the Open-Meteo Forecast API.
@@ -49,7 +51,7 @@ actor OpenMeteoClient {
                 value: "temperature_2m,relative_humidity_2m,precipitation_probability,wind_speed_10m,wind_gusts_10m,cloud_cover,is_day"
             ),
             URLQueryItem(name: "temperature_unit", value: "fahrenheit"),
-            URLQueryItem(name: "wind_speed_unit", value: "mph"),
+            URLQueryItem(name: "wind_speed_unit", value: "kn"),
             URLQueryItem(name: "precipitation_unit", value: "inch"),
             URLQueryItem(name: "timezone", value: "auto"),
             URLQueryItem(name: "forecast_days", value: "14"),
