@@ -10,6 +10,7 @@ struct AppRequestContext: AuthRequestContextProtocol, RequestContext {
     var flashMessages: [FlashMessage] = []
     var masqueradingAs: String?
     var realUserID: UUID?
+    var csrfToken: String?
 
     init(source: ApplicationRequestContextSource) {
         self.coreContext = .init(source: source)

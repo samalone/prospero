@@ -8,19 +8,22 @@ struct PageContext: Sendable {
     var isLoggedIn: Bool
     var flashMessages: [FlashMessage]
     var masqueradingAs: String?
+    var csrfToken: String?
 
     init(
         userName: String? = nil,
         isAdmin: Bool = false,
         isLoggedIn: Bool = false,
         flashMessages: [FlashMessage] = [],
-        masqueradingAs: String? = nil
+        masqueradingAs: String? = nil,
+        csrfToken: String? = nil
     ) {
         self.userName = userName
         self.isAdmin = isAdmin
         self.isLoggedIn = isLoggedIn
         self.flashMessages = flashMessages
         self.masqueradingAs = masqueradingAs
+        self.csrfToken = csrfToken
     }
 
     /// Build from the base app context.
@@ -30,6 +33,7 @@ struct PageContext: Sendable {
         self.isLoggedIn = context.user != nil
         self.flashMessages = context.flashMessages
         self.masqueradingAs = context.masqueradingAs
+        self.csrfToken = context.csrfToken
     }
 
     /// Build from an authenticated context.
@@ -39,6 +43,7 @@ struct PageContext: Sendable {
         self.isLoggedIn = true
         self.flashMessages = context.flashMessages
         self.masqueradingAs = context.masqueradingAs
+        self.csrfToken = context.csrfToken
     }
 
     /// Build from an admin context.
@@ -48,5 +53,6 @@ struct PageContext: Sendable {
         self.isLoggedIn = true
         self.flashMessages = context.flashMessages
         self.masqueradingAs = context.masqueradingAs
+        self.csrfToken = context.csrfToken
     }
 }

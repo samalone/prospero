@@ -54,6 +54,8 @@ struct PageLayout: ResponseGenerator {
                                                 .form(
                                                     .method(.post),
                                                     .action("/admin/masquerade/end"),
+                                                    .input(.type(.hidden), .name("csrf_token"),
+                                                           .value(pageContext.csrfToken ?? "")),
                                                     .element(named: "button",
                                                         nodes: [
                                                             .attribute(named: "type", value: "submit"),

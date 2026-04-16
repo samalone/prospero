@@ -167,12 +167,13 @@ struct Serve: AsyncParsableCommand {
             ),
             renderUsers: { users, context in
                 PageLayout(title: "Users", pageContext: PageContext(from: context)) {
-                    AdminUsersView(users: users)
+                    AdminUsersView(users: users, csrfToken: context.csrfToken)
                 }
             },
             renderInvitations: { invitations, baseURL, context in
                 PageLayout(title: "Invitations", pageContext: PageContext(from: context)) {
-                    AdminInvitationsView(invitations: invitations, baseURL: baseURL)
+                    AdminInvitationsView(invitations: invitations, baseURL: baseURL,
+                                         csrfToken: context.csrfToken)
                 }
             }
         )
