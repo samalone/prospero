@@ -15,7 +15,7 @@ struct ProsperoCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "prospero",
         abstract: "Reverse weather forecaster — find upcoming windows matching your activity patterns.",
-        subcommands: [Serve.self, Migrate.self],
+        subcommands: [Serve.self, Migrate.self, Invite.self],
         defaultSubcommand: Serve.self
     )
 }
@@ -173,6 +173,59 @@ struct Migrate: AsyncParsableCommand {
         } else {
             try await fluent.migrate()
             logger.info("Migrations complete.")
+        }
+
+        try await fluent.shutdown()
+    }
+}
+
+struct Invite: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        abstract: "Generate an invitation URL for a new user."
+    )
+
+    @Option(name: .shortAndLong, help: "Pre-fill the invitee's email address.")
+    var email: String?
+
+    @Option(name: .long, help: "Invitation expiration in days.")
+    var expiresDays: Int = 7
+
+    @Option(name: .long, help: "Base URL for the invite link.")
+    var baseURL: String = "http://localhost:8080"
+
+    func run() async throws {
+        let logger = Logger(label: "Prospero")
+
+        let fluent = buildFluent(logger: logger)
+        await addMigrations(to: fluent)
+
+        do {
+            try await fluent.migrate()
+
+            let db = fluent.db()
+            let invitationService = InvitationService(
+                db: db, logger: logger,
+                config: InvitationConfiguration(
+                    tokenTTL: TimeInterval(expiresDays) * 86400
+                )
+            )
+
+            let invitation = try await invitationService.createInvitation(
+                email: email
+            )
+
+            let url = "\(baseURL)/invite/\(invitation.token)"
+            print("")
+            print("Invitation created!")
+            if let email {
+                print("  Email: \(email)")
+            }
+            print("  Expires: \(expiresDays) days")
+            print("  URL: \(url)")
+            print("")
+        } catch {
+            try await fluent.shutdown()
+            throw error
         }
 
         try await fluent.shutdown()
