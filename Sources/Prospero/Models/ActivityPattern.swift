@@ -77,6 +77,17 @@ final class ActivityPattern: Model, @unchecked Sendable {
     @OptionalField(key: "tide_height_min")
     var tideHeightMin: Double?
 
+    /// Hue angle (0..<360) for this pattern's color in UI elements.
+    /// Auto-assigned to maximize visual distinction from other patterns
+    /// unless the user has pinned it via `isHueFixed`.
+    @Field(key: "hue")
+    var hue: Double
+
+    /// Whether the hue is pinned by the user. When false, the hue is
+    /// recomputed when the set of patterns changes.
+    @Field(key: "is_hue_fixed")
+    var isHueFixed: Bool
+
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 
@@ -104,7 +115,9 @@ final class ActivityPattern: Model, @unchecked Sendable {
         earliestHour: Int? = nil,
         latestHour: Int? = nil,
         tideRequirement: TideRequirement = .any,
-        tideHeightMin: Double? = nil
+        tideHeightMin: Double? = nil,
+        hue: Double = 0,
+        isHueFixed: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -125,5 +138,7 @@ final class ActivityPattern: Model, @unchecked Sendable {
         self.latestHour = latestHour
         self.tideRequirement = tideRequirement
         self.tideHeightMin = tideHeightMin
+        self.hue = hue
+        self.isHueFixed = isHueFixed
     }
 }

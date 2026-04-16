@@ -21,6 +21,8 @@ struct CreateActivityPatterns: AsyncMigration {
             .field("earliest_hour", .int)
             .field("latest_hour", .int)
             .field("tide_requirement", .string, .required, .sql(.default("any")))
+            .field("hue", .double, .required, .sql(.default(0.0)))
+            .field("is_hue_fixed", .bool, .required, .sql(.default(false)))
             .field("created_at", .datetime)
             .field("updated_at", .datetime)
             .create()

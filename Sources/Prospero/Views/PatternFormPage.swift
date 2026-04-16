@@ -133,6 +133,51 @@ struct PatternFormPage {
                               placeholder: "e.g., 4.0", step: "0.1")
                 }
 
+                // Color picker — only meaningful when editing (new patterns
+                // get auto-assigned hues).
+                if isEditing {
+                    Element(name: "fieldset") {
+                        Element(name: "legend") { Text("Color") }
+                        Paragraph("Drag the slider to pick a color, or leave \"Lock this color\" unchecked and Prospero will auto-assign one that contrasts with your other patterns.")
+                            .class("help-text")
+
+                        Div {
+                            Node.input(
+                                .type(.range),
+                                .name("hue"),
+                                .id("hue"),
+                                .attribute(named: "min", value: "0"),
+                                .attribute(named: "max", value: "359"),
+                                .attribute(named: "step", value: "1"),
+                                .value(String(format: "%.0f", pattern?.hue ?? 0))
+                            )
+                            .class("hue-slider")
+                            .attribute(named: "oninput",
+                                       value: "this.nextElementSibling.style.background = 'oklch(65% 0.18 ' + this.value + ')'; document.getElementById('is_hue_fixed').checked = true;")
+
+                            Element(name: "span") {}
+                                .class("hue-swatch")
+                                .attribute(named: "style",
+                                           value: "background: oklch(65% 0.18 \(String(format: "%.0f", pattern?.hue ?? 0)))")
+                        }
+                        .class("hue-picker")
+
+                        Div {
+                            Element(name: "label") {
+                                Node.input(
+                                    .type(.checkbox),
+                                    .name("is_hue_fixed"),
+                                    .id("is_hue_fixed"),
+                                    .value("true")
+                                )
+                                .checked(pattern?.isHueFixed ?? false)
+                                Text(" Lock this color")
+                            }
+                        }
+                        .class("checkbox-field")
+                    }
+                }
+
                 Div {
                     Element(name: "button") {
                         Text(isEditing ? "Update Pattern" : "Create Pattern")

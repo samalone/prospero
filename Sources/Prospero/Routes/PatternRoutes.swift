@@ -28,6 +28,8 @@ func addPatternRoutes(
         return PatternFormPage(pageContext: pc).html
     }
 
+    let hueService = PatternHueService(db: db)
+
     // Create pattern (assigned to current user)
     router.post("/patterns") { request, context -> Response in
         let input = try await URLEncodedFormDecoder().decode(
@@ -36,6 +38,7 @@ func addPatternRoutes(
         let pattern = input.toModel()
         pattern.userID = context.user.id
         try await pattern.save(on: db)
+        try await hueService.recomputeHues(userID: context.user.id!)
         return .redirect(to: "/patterns", type: .normal)
     }
 
@@ -69,6 +72,8 @@ func addPatternRoutes(
         )
         input.apply(to: pattern)
         try await pattern.save(on: db)
+        // Recompute in case isHueFixed status changed.
+        try await hueService.recomputeHues(userID: context.user.id!)
         return .redirect(to: "/patterns", type: .normal)
     }
 
@@ -83,6 +88,7 @@ func addPatternRoutes(
             throw HTTPError(.notFound)
         }
         try await pattern.delete(on: db)
+        try await hueService.recomputeHues(userID: context.user.id!)
         return .redirect(to: "/patterns", type: .normal)
     }
 }
@@ -111,6 +117,8 @@ struct PatternInput: Decodable {
     var latest_hour: String?
     var tide_requirement: String?
     var tide_height_min: String?
+    var hue: String?
+    var is_hue_fixed: String?
 
     func toModel() -> ActivityPattern {
         ActivityPattern(
@@ -131,7 +139,9 @@ struct PatternInput: Decodable {
             earliestHour: earliest_hour?.toInt,
             latestHour: latest_hour?.toInt,
             tideRequirement: TideRequirement(rawValue: tide_requirement ?? "any") ?? .any,
-            tideHeightMin: tide_height_min?.toDouble
+            tideHeightMin: tide_height_min?.toDouble,
+            hue: hue?.toDouble ?? 0,
+            isHueFixed: is_hue_fixed == "true"
         )
     }
 
@@ -154,6 +164,10 @@ struct PatternInput: Decodable {
         pattern.latestHour = latest_hour?.toInt
         pattern.tideRequirement = TideRequirement(rawValue: tide_requirement ?? "any") ?? .any
         pattern.tideHeightMin = tide_height_min?.toDouble
+        if let h = hue?.toDouble {
+            pattern.hue = h
+        }
+        pattern.isHueFixed = is_hue_fixed == "true"
     }
 }
 

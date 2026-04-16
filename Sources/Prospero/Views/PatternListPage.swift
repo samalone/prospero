@@ -89,6 +89,8 @@ struct PatternCard: Component {
             .class("card-actions")
         }
         .class("pattern-card")
+        .attribute(named: "style",
+                   value: "--goal-color: \(HuePlacer.goalColor(hue: pattern.hue))")
     }
 }
 

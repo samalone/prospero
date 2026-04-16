@@ -148,6 +148,8 @@ struct WindowCard: Component {
             .class("window-conditions")
         }
         .class("window-card")
+        .attribute(named: "style",
+                   value: "--goal-color: \(HuePlacer.goalColor(hue: pattern.hue))")
     }
 }
 

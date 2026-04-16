@@ -229,6 +229,7 @@ button[type="submit"]:hover {
 .pattern-card {
     background: var(--surface);
     border: 1px solid var(--border);
+    border-left: 4px solid var(--goal-color, var(--border));
     border-radius: var(--radius);
     padding: 1.5rem;
 }
@@ -379,6 +380,7 @@ button[type="submit"] {
 .window-card {
     background: var(--surface);
     border: 1px solid var(--border);
+    border-left: 4px solid var(--goal-color, var(--border));
     border-radius: var(--radius);
     padding: 1.5rem;
 }
@@ -422,6 +424,49 @@ button[type="submit"] {
     font-size: 0.8rem;
     font-style: italic;
     margin-top: 0.1rem;
+}
+
+/* Hue picker */
+.hue-picker {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.hue-slider {
+    flex: 1;
+    height: 0.75rem;
+    border-radius: 0.375rem;
+    background: linear-gradient(to right,
+        oklch(65% 0.18 0),
+        oklch(65% 0.18 60),
+        oklch(65% 0.18 120),
+        oklch(65% 0.18 180),
+        oklch(65% 0.18 240),
+        oklch(65% 0.18 300),
+        oklch(65% 0.18 360));
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.hue-slider::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid var(--text);
+    cursor: grab;
+}
+
+.hue-swatch {
+    display: inline-block;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    border: 1px solid var(--border);
 }
 
 .quality-badge {
