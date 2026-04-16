@@ -103,6 +103,7 @@ struct Serve: AsyncParsableCommand {
         router.add(middleware: SessionMiddleware<AppRequestContext>(
             db: db, config: authConfig.session
         ))
+        router.add(middleware: MasqueradeMiddleware(db: db))
         router.add(middleware: AuthRedirectMiddleware<AppRequestContext>(
             loginPath: authConfig.loginPagePath
         ))

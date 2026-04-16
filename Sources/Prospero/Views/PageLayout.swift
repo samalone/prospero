@@ -46,24 +46,43 @@ struct PageLayout {
                                         .id("user-menu"),
                                         .attribute(named: "popover", value: "auto"),
                                         .class("popover-menu"),
-                                        .a(.href("/profile"), .text("Profile")),
-                                        .if(pageContext.isAdmin,
+                                        .if(pageContext.masqueradingAs != nil,
                                             .group(
+                                                .div(.class("menu-info"),
+                                                     .text("Viewing as \(pageContext.masqueradingAs ?? "")")),
+                                                .form(
+                                                    .method(.post),
+                                                    .action("/admin/masquerade/end"),
+                                                    .element(named: "button",
+                                                        nodes: [
+                                                            .attribute(named: "type", value: "submit"),
+                                                            .class("menu-link"),
+                                                            .text("Switch back"),
+                                                        ]
+                                                    )
+                                                )
+                                            ),
+                                            else: .group(
+                                                .a(.href("/profile"), .text("Profile")),
+                                                .if(pageContext.isAdmin,
+                                                    .group(
+                                                        .element(named: "hr", nodes: []),
+                                                        .a(.href("/admin/users"), .text("Users")),
+                                                        .a(.href("/admin/invitations"), .text("Invitations"))
+                                                    )
+                                                ),
                                                 .element(named: "hr", nodes: []),
-                                                .a(.href("/admin/users"), .text("Users")),
-                                                .a(.href("/admin/invitations"), .text("Invitations"))
-                                            )
-                                        ),
-                                        .element(named: "hr", nodes: []),
-                                        .form(
-                                            .method(.post),
-                                            .action("/auth/logout"),
-                                            .element(named: "button",
-                                                nodes: [
-                                                    .attribute(named: "type", value: "submit"),
-                                                    .class("menu-link"),
-                                                    .text("Sign out"),
-                                                ]
+                                                .form(
+                                                    .method(.post),
+                                                    .action("/auth/logout"),
+                                                    .element(named: "button",
+                                                        nodes: [
+                                                            .attribute(named: "type", value: "submit"),
+                                                            .class("menu-link"),
+                                                            .text("Sign out"),
+                                                        ]
+                                                    )
+                                                )
                                             )
                                         )
                                     )

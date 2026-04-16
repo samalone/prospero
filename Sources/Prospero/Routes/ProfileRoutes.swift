@@ -7,11 +7,12 @@ func addProfileRoutes(
     to router: RouterGroup<AuthedContext>,
     db: Database
 ) {
-    router.get("/profile") { _, context -> HTML in
-        ProfilePage(
+    router.get("/profile") { request, context -> HTML in
+        let pc = await PageContext.from(context, request: request, db: db)
+        return ProfilePage(
             displayName: context.user.displayName,
             email: context.user.email,
-            pageContext: PageContext(from: context)
+            pageContext: pc
         ).html
     }
 
@@ -30,11 +31,12 @@ func addProfileRoutes(
         user.email = input.email.trimmingCharacters(in: .whitespacesAndNewlines)
         try await user.save(on: db)
 
+        let pc = await PageContext.from(context, request: request, db: db)
         return ProfilePage(
             displayName: user.displayName,
             email: user.email,
             savedMessage: "Profile updated.",
-            pageContext: PageContext(from: context)
+            pageContext: pc
         ).html
     }
 }

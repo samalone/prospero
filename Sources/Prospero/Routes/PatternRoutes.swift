@@ -12,18 +12,20 @@ func addPatternRoutes(
     logger: Logging.Logger
 ) {
     // List current user's patterns
-    router.get("/patterns") { _, context -> HTML in
+    router.get("/patterns") { request, context -> HTML in
         let userID = context.user.id!
         let patterns = try await ActivityPattern.query(on: db)
             .filter(\.$userID == userID)
             .sort(\.$name)
             .all()
-        return PatternListPage(patterns: patterns, pageContext: PageContext(from: context)).html
+        let pc = await PageContext.from(context, request: request, db: db)
+        return PatternListPage(patterns: patterns, pageContext: pc).html
     }
 
     // New pattern form
-    router.get("/patterns/new") { _, context -> HTML in
-        PatternFormPage(pageContext: PageContext(from: context)).html
+    router.get("/patterns/new") { request, context -> HTML in
+        let pc = await PageContext.from(context, request: request, db: db)
+        return PatternFormPage(pageContext: pc).html
     }
 
     // Create pattern (assigned to current user)
@@ -38,7 +40,7 @@ func addPatternRoutes(
     }
 
     // Edit pattern form (only if owned by current user)
-    router.get("/patterns/:id/edit") { _, context -> HTML in
+    router.get("/patterns/:id/edit") { request, context -> HTML in
         guard let id = context.parameters.get("id", as: UUID.self),
               let pattern = try await ActivityPattern.query(on: db)
                 .filter(\.$id == id)
@@ -47,7 +49,8 @@ func addPatternRoutes(
         else {
             throw HTTPError(.notFound)
         }
-        return PatternFormPage(pattern: pattern, pageContext: PageContext(from: context)).html
+        let pc = await PageContext.from(context, request: request, db: db)
+        return PatternFormPage(pattern: pattern, pageContext: pc).html
     }
 
     // Update pattern

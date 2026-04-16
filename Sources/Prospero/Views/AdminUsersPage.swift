@@ -69,6 +69,13 @@ struct AdminUsersPage {
                                         .attribute(named: "method", value: "POST")
                                         .attribute(named: "action", value: "/admin/users/\(user.id)/role")
                                     }
+                                    Element(name: "form") {
+                                        Element(name: "button") { Text("Masquerade") }
+                                            .type("submit")
+                                            .class("button small secondary")
+                                    }
+                                    .attribute(named: "method", value: "POST")
+                                    .attribute(named: "action", value: "/admin/users/\(user.id)/masquerade")
                                 }
                                 .class("table-actions")
                             }

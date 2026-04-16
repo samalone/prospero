@@ -59,12 +59,13 @@ func addForecastRoutes(
             windows.sort { $0.quality > $1.quality }
         }
 
+        let pc = await PageContext.from(context, request: request, db: db)
         return ForecastResultsPage(
             pattern: pattern,
             windows: windows,
             sortByQuality: sortByQuality,
             hasTideData: tidePredictions != nil,
-            pageContext: PageContext(from: context)
+            pageContext: pc
         ).html
     }
 }
