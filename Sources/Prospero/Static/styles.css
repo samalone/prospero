@@ -26,7 +26,7 @@ body {
     line-height: 1.6;
 }
 
-header nav {
+header .top-nav {
     display: flex;
     align-items: center;
     gap: 2rem;
@@ -35,7 +35,7 @@ header nav {
     border-bottom: 1px solid var(--border);
 }
 
-header nav > a {
+header .top-nav > a {
     font-size: 1.25rem;
     font-weight: 700;
     color: var(--text);
@@ -45,6 +45,7 @@ header nav > a {
 .nav-links {
     display: flex;
     gap: 1rem;
+    flex: 1;
 }
 
 .nav-links a {
@@ -55,6 +56,79 @@ header nav > a {
 .nav-links a:hover {
     color: var(--primary);
 }
+
+.nav-right {
+    margin-left: auto;
+    position: relative;
+}
+
+/* User menu */
+.user-menu-button {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.4rem 0.8rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text);
+}
+
+.user-menu-button:hover {
+    background: var(--bg);
+}
+
+.popover-menu {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    padding: 0.5rem 0;
+    min-width: 160px;
+}
+
+.popover-menu a,
+.popover-menu .menu-link {
+    display: block;
+    padding: 0.5rem 1rem;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.875rem;
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+}
+
+.popover-menu a:hover,
+.popover-menu .menu-link:hover {
+    background: var(--bg);
+}
+
+.popover-menu hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0.25rem 0;
+}
+
+/* Flash messages */
+#flash-messages {
+    max-width: 960px;
+    margin: 1rem auto 0;
+    padding: 0 1rem;
+}
+
+.flash-message {
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius);
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.flash-success { background: #dcfce7; color: var(--success); }
+.flash-error { background: #fee2e2; color: var(--danger); }
+.flash-warning { background: #fef9c3; color: var(--warning); }
+.flash-info { background: #dbeafe; color: var(--primary); }
 
 main {
     max-width: 960px;
@@ -373,4 +447,93 @@ button[type="submit"] {
 
 .page-actions {
     margin-top: 2rem;
+}
+
+/* Tables (admin) */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-top: 1rem;
+}
+
+.data-table th,
+.data-table td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.875rem;
+}
+
+.data-table th {
+    background: var(--bg);
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.table-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.role-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--bg);
+    color: var(--text-muted);
+}
+
+.role-admin {
+    background: #dbeafe;
+    color: var(--primary);
+}
+
+/* Invite form */
+.invite-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Auth page (login/register) */
+.auth-page main {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+}
+
+.auth-error {
+    color: var(--danger);
+    margin-bottom: 1rem;
+}
+
+.auth-button {
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius);
+    font-size: 1rem;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+}
+
+.auth-button.primary {
+    background: var(--primary);
+    color: white;
+}
+
+.auth-button.primary:hover {
+    background: var(--primary-hover);
 }

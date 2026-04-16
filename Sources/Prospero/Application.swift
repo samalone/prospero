@@ -144,10 +144,17 @@ struct Serve: AsyncParsableCommand {
             .redirect(to: "/patterns")
         }
 
-        // Authenticated routes (patterns require login)
+        // Authenticated routes
         let authed = router.group(context: AuthenticatedContext<AppRequestContext>.self)
         addPatternRoutes(to: authed, db: db, logger: logger)
         addForecastRoutes(to: authed, db: db, logger: logger)
+        addProfileRoutes(to: authed, db: db)
+
+        // Admin routes
+        let baseURL = ProcessInfo.processInfo.environment["BASE_URL"]
+            ?? "http://localhost:\(port)"
+        let admin = router.group(context: AdminContext<AppRequestContext>.self)
+        addAdminRoutes(to: admin, db: db, logger: logger, baseURL: baseURL)
 
         var app = Application(
             router: router,

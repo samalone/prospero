@@ -2,10 +2,11 @@ import Plot
 
 struct PatternFormPage {
     var pattern: ActivityPattern?
+    var pageContext: PageContext = PageContext()
     var isEditing: Bool { pattern != nil }
 
     var html: HTML {
-        PageLayout(title: isEditing ? "Edit Pattern" : "New Pattern") {
+        PageLayout(title: isEditing ? "Edit Pattern" : "New Pattern", pageContext: pageContext) {
             H1(isEditing ? "Edit Pattern" : "New Pattern")
 
             Element(name: "form") {

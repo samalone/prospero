@@ -6,13 +6,14 @@ struct ForecastResultsPage {
     var windows: [MatchWindow]
     var sortByQuality: Bool = false
     var hasTideData: Bool = false
+    var pageContext: PageContext = PageContext()
 
     private var patternID: String {
         pattern.id?.uuidString ?? ""
     }
 
     var html: HTML {
-        PageLayout(title: "\(pattern.name) Forecast") {
+        PageLayout(title: "\(pattern.name) Forecast", pageContext: pageContext) {
             H1 {
                 Text("\(pattern.name)")
             }

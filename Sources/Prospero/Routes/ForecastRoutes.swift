@@ -63,7 +63,8 @@ func addForecastRoutes(
             pattern: pattern,
             windows: windows,
             sortByQuality: sortByQuality,
-            hasTideData: tidePredictions != nil
+            hasTideData: tidePredictions != nil,
+            pageContext: PageContext(from: context)
         ).html
     }
 }

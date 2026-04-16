@@ -1,9 +1,11 @@
+import HummingbirdAuth
 import HummingbirdAuthViews
 import Plot
+import PlotHTMX
 
 struct PageLayout {
     var title: String
-    var stylesheets: [String] = []
+    var pageContext: PageContext = PageContext()
     var includeAuthScript: Bool = false
     @ComponentBuilder var content: () -> Component
 
@@ -14,19 +16,71 @@ struct PageLayout {
                 .meta(.name("viewport"), .content("width=device-width, initial-scale=1")),
                 .title("\(title) — Prospero"),
                 .stylesheet("/styles.css"),
-                .forEach(stylesheets) { .stylesheet($0) },
                 .script(.src("/htmx.min.js")),
                 .if(includeAuthScript, .raw(WebAuthnScript.scriptTag))
             ),
             .body(
                 .header(
                     .nav(
+                        .class("top-nav"),
                         .a(.href("/"), .text("Prospero")),
+                        .if(pageContext.isLoggedIn,
+                            .div(
+                                .class("nav-links"),
+                                .a(.href("/patterns"), .text("Patterns")),
+                                .a(.href("/patterns/new"), .text("New Pattern"))
+                            )
+                        ),
                         .div(
-                            .class("nav-links"),
-                            .a(.href("/patterns"), .text("Patterns")),
-                            .a(.href("/patterns/new"), .text("New Pattern"))
+                            .class("nav-right"),
+                            .if(pageContext.isLoggedIn,
+                                .group(
+                                    .element(named: "button",
+                                        nodes: [
+                                            .attribute(named: "popovertarget", value: "user-menu"),
+                                            .class("user-menu-button"),
+                                            .text(pageContext.userName ?? "Account"),
+                                        ]
+                                    ),
+                                    .div(
+                                        .id("user-menu"),
+                                        .attribute(named: "popover", value: "auto"),
+                                        .class("popover-menu"),
+                                        .a(.href("/profile"), .text("Profile")),
+                                        .if(pageContext.isAdmin,
+                                            .group(
+                                                .element(named: "hr", nodes: []),
+                                                .a(.href("/admin/users"), .text("Users")),
+                                                .a(.href("/admin/invitations"), .text("Invitations"))
+                                            )
+                                        ),
+                                        .element(named: "hr", nodes: []),
+                                        .form(
+                                            .method(.post),
+                                            .action("/auth/logout"),
+                                            .element(named: "button",
+                                                nodes: [
+                                                    .attribute(named: "type", value: "submit"),
+                                                    .class("menu-link"),
+                                                    .text("Sign out"),
+                                                ]
+                                            )
+                                        )
+                                    )
+                                )
+                            )
                         )
+                    )
+                ),
+                .if(!pageContext.flashMessages.isEmpty,
+                    .div(
+                        .id("flash-messages"),
+                        .forEach(pageContext.flashMessages) { flash in
+                            .div(
+                                .class("flash-message flash-\(flash.level.rawValue)"),
+                                .text(flash.text)
+                            )
+                        }
                     )
                 ),
                 .main(

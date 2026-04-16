@@ -2,9 +2,10 @@ import Plot
 
 struct PatternListPage {
     var patterns: [ActivityPattern]
+    var pageContext: PageContext = PageContext()
 
     var html: HTML {
-        PageLayout(title: "Patterns") {
+        PageLayout(title: "Patterns", pageContext: pageContext) {
             Div {
                 H1("Activity Patterns")
 
