@@ -89,68 +89,71 @@ func addPatternRoutes(
 
 // MARK: - Form Input
 
+/// All optional numeric fields are decoded as String? because HTML forms
+/// submit empty strings for blank inputs, and URLEncodedFormDecoder
+/// can't parse "" as Double?.
 struct PatternInput: Decodable {
     var name: String
     var location_name: String?
-    var latitude: Double
-    var longitude: Double
+    var latitude: String
+    var longitude: String
     var tide_station: String?
-    var duration_hours: Double
-    var temperature_min: Double?
-    var temperature_max: Double?
-    var humidity_max: Double?
-    var precip_probability_max: Double?
-    var wind_speed_min: Double?
-    var wind_speed_max: Double?
-    var cloud_cover_max: Double?
+    var duration_hours: String
+    var temperature_min: String?
+    var temperature_max: String?
+    var humidity_max: String?
+    var precip_probability_max: String?
+    var wind_speed_min: String?
+    var wind_speed_max: String?
+    var cloud_cover_max: String?
     var requires_daylight: String?
-    var earliest_hour: Int?
-    var latest_hour: Int?
+    var earliest_hour: String?
+    var latest_hour: String?
     var tide_requirement: String?
-    var tide_height_min: Double?
+    var tide_height_min: String?
 
     func toModel() -> ActivityPattern {
         ActivityPattern(
             name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-            latitude: latitude,
-            longitude: longitude,
+            latitude: Double(latitude) ?? 0,
+            longitude: Double(longitude) ?? 0,
             locationName: location_name?.nilIfEmpty,
             tideStation: tide_station?.nilIfEmpty,
-            durationHours: duration_hours,
-            temperatureMin: temperature_min,
-            temperatureMax: temperature_max,
-            humidityMax: humidity_max,
-            precipProbabilityMax: precip_probability_max,
-            windSpeedMin: wind_speed_min,
-            windSpeedMax: wind_speed_max,
-            cloudCoverMax: cloud_cover_max,
+            durationHours: Double(duration_hours) ?? 4,
+            temperatureMin: temperature_min?.toDouble,
+            temperatureMax: temperature_max?.toDouble,
+            humidityMax: humidity_max?.toDouble,
+            precipProbabilityMax: precip_probability_max?.toDouble,
+            windSpeedMin: wind_speed_min?.toDouble,
+            windSpeedMax: wind_speed_max?.toDouble,
+            cloudCoverMax: cloud_cover_max?.toDouble,
             requiresDaylight: requires_daylight == "true",
-            earliestHour: earliest_hour,
-            latestHour: latest_hour,
+            earliestHour: earliest_hour?.toInt,
+            latestHour: latest_hour?.toInt,
             tideRequirement: TideRequirement(rawValue: tide_requirement ?? "any") ?? .any,
-            tideHeightMin: tide_height_min
+            tideHeightMin: tide_height_min?.toDouble
         )
     }
 
     func apply(to pattern: ActivityPattern) {
         pattern.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        pattern.latitude = latitude
-        pattern.longitude = longitude
+        pattern.latitude = Double(latitude) ?? 0
+        pattern.longitude = Double(longitude) ?? 0
         pattern.locationName = location_name?.nilIfEmpty
         pattern.tideStation = tide_station?.nilIfEmpty
-        pattern.durationHours = duration_hours
-        pattern.temperatureMin = temperature_min
-        pattern.temperatureMax = temperature_max
-        pattern.humidityMax = humidity_max
-        pattern.precipProbabilityMax = precip_probability_max
-        pattern.windSpeedMin = wind_speed_min
-        pattern.windSpeedMax = wind_speed_max
-        pattern.cloudCoverMax = cloud_cover_max
+        pattern.durationHours = Double(duration_hours) ?? 4
+        pattern.temperatureMin = temperature_min?.toDouble
+        pattern.temperatureMax = temperature_max?.toDouble
+        pattern.humidityMax = humidity_max?.toDouble
+        pattern.precipProbabilityMax = precip_probability_max?.toDouble
+        pattern.windSpeedMin = wind_speed_min?.toDouble
+        pattern.windSpeedMax = wind_speed_max?.toDouble
+        pattern.cloudCoverMax = cloud_cover_max?.toDouble
         pattern.requiresDaylight = requires_daylight == "true"
-        pattern.earliestHour = earliest_hour
-        pattern.latestHour = latest_hour
+        pattern.earliestHour = earliest_hour?.toInt
+        pattern.latestHour = latest_hour?.toInt
         pattern.tideRequirement = TideRequirement(rawValue: tide_requirement ?? "any") ?? .any
-        pattern.tideHeightMin = tide_height_min
+        pattern.tideHeightMin = tide_height_min?.toDouble
     }
 }
 
@@ -158,5 +161,17 @@ extension String {
     var nilIfEmpty: String? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    /// Parse as Double, returning nil for empty or non-numeric strings.
+    var toDouble: Double? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : Double(trimmed)
+    }
+
+    /// Parse as Int, returning nil for empty or non-numeric strings.
+    var toInt: Int? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : Int(trimmed)
     }
 }
