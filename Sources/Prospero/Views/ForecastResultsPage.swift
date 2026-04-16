@@ -83,14 +83,27 @@ struct WindowCard: Component {
     }()
 
     var body: Component {
-        Div {
+        let fullStart = Self.timeFormatter.string(from: window.start)
+        let fullEnd = Self.timeFormatter.string(from: window.end)
+        let bestStart = Self.timeFormatter.string(from: window.bestStart)
+        let bestEnd = Self.timeFormatter.string(from: window.bestEnd)
+        let showsBest = window.start != window.bestStart || window.end != window.bestEnd
+
+        return Div {
             Div {
                 H3(Self.dayFormatter.string(from: window.start))
 
                 Paragraph {
-                    Text("\(Self.timeFormatter.string(from: window.start)) – \(Self.timeFormatter.string(from: window.end))")
+                    Text("\(fullStart) – \(fullEnd)")
                 }
                 .class("window-time")
+
+                if showsBest {
+                    Paragraph {
+                        Text("\(bestStart) – \(bestEnd) (best)")
+                    }
+                    .class("window-best-time")
+                }
 
                 QualityIndicator(quality: window.quality)
             }

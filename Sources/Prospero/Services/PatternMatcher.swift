@@ -2,15 +2,19 @@ import Foundation
 
 /// A time window that matches an activity pattern's constraints.
 struct MatchWindow: Sendable {
-    /// Start of the qualifying window.
+    /// Start of the full qualifying range.
     var start: Date
-    /// End of the qualifying window (exclusive).
+    /// End of the full qualifying range (exclusive).
     var end: Date
-    /// Number of contiguous qualifying hours.
+    /// Start of the best-scoring sub-window within the qualifying range.
+    var bestStart: Date
+    /// End of the best-scoring sub-window (exclusive).
+    var bestEnd: Date
+    /// Number of contiguous qualifying hours in the full range.
     var hours: Int
     /// Quality score 0.0–1.0 (1.0 = ideal center of all constraint ranges).
     var quality: Double
-    /// Summary conditions across the window (min/max/avg).
+    /// Summary conditions across the best sub-window.
     var summary: ConditionsSummary
 }
 
@@ -68,11 +72,18 @@ struct PatternMatcher: Sendable {
 
             let windowSlice = Array(slice[bestStart..<(bestStart + requiredHours)])
 
+            let fullStart = conditions[range.lowerBound].date
+            let fullEnd = conditions[range.upperBound - 1].date.addingTimeInterval(3600)
+            let bestStartDate = conditions[range.lowerBound + bestStart].date
+            let bestEndDate = conditions[range.lowerBound + bestStart + requiredHours - 1].date
+                .addingTimeInterval(3600)
+
             windows.append(MatchWindow(
-                start: conditions[range.lowerBound + bestStart].date,
-                end: conditions[range.lowerBound + bestStart + requiredHours - 1].date
-                    .addingTimeInterval(3600),
-                hours: slice.count, // Full qualifying range
+                start: fullStart,
+                end: fullEnd,
+                bestStart: bestStartDate,
+                bestEnd: bestEndDate,
+                hours: slice.count,
                 quality: bestQuality,
                 summary: summarize(windowSlice)
             ))
