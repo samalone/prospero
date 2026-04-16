@@ -19,22 +19,20 @@ struct PatternFormPage {
                     Element(name: "legend") { Text("Location") }
 
                     FormField(label: "Location Name", name: "location_name", type: "text",
-                              value: pattern?.locationName, placeholder: "e.g., Edgewood Yacht Club")
+                              value: pattern?.locationName ?? "Edgewood Yacht Club")
 
                     Div {
                         FormField(label: "Latitude", name: "latitude", type: "number",
-                                  value: pattern.map { String($0.latitude) },
-                                  placeholder: "41.777", required: true,
-                                  step: "0.0001")
+                                  value: pattern.map { String($0.latitude) } ?? "41.777",
+                                  required: true, step: "0.0001")
                         FormField(label: "Longitude", name: "longitude", type: "number",
-                                  value: pattern.map { String($0.longitude) },
-                                  placeholder: "-71.393", required: true,
-                                  step: "0.0001")
+                                  value: pattern.map { String($0.longitude) } ?? "-71.3925",
+                                  required: true, step: "0.0001")
                     }
                     .class("form-row")
 
                     FormField(label: "NOAA Tide Station", name: "tide_station", type: "text",
-                              value: pattern?.tideStation, placeholder: "e.g., 8453767 (optional)")
+                              value: pattern?.tideStation ?? "8453767")
                 }
 
                 // Duration
