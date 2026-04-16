@@ -77,6 +77,10 @@ header .top-nav > a {
     background: var(--bg);
 }
 
+.user-menu-button {
+    anchor-name: --user-menu-anchor;
+}
+
 .popover-menu {
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -84,6 +88,12 @@ header .top-nav > a {
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     padding: 0.5rem 0;
     min-width: 160px;
+    /* Anchor to the user menu button */
+    position-anchor: --user-menu-anchor;
+    inset: unset;
+    top: anchor(bottom);
+    right: anchor(right);
+    margin-top: 0.5rem;
 }
 
 .popover-menu a,
