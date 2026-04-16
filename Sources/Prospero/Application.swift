@@ -151,11 +151,9 @@ struct Serve: AsyncParsableCommand {
 
         // Profile (library routes + Prospero layout)
         installProfileRoutes(on: authed, db: db) { vm, context in
-            htmlResponse(
-                PageLayout(title: "Profile", pageContext: PageContext(from: context)) {
-                    ProfileView(viewModel: vm)
-                }.html.render()
-            )
+            PageLayout(title: "Profile", pageContext: PageContext(from: context)) {
+                ProfileView(viewModel: vm)
+            }.html
         }
 
         // Admin routes (library routes + Prospero layout)
@@ -170,18 +168,14 @@ struct Serve: AsyncParsableCommand {
                 invitations: authConfig.invitations ?? InvitationConfiguration()
             ),
             renderUsers: { users, context in
-                htmlResponse(
-                    PageLayout(title: "Users", pageContext: PageContext(from: context)) {
-                        AdminUsersView(users: users)
-                    }.html.render()
-                )
+                PageLayout(title: "Users", pageContext: PageContext(from: context)) {
+                    AdminUsersView(users: users)
+                }.html
             },
             renderInvitations: { invitations, baseURL, context in
-                htmlResponse(
-                    PageLayout(title: "Invitations", pageContext: PageContext(from: context)) {
-                        AdminInvitationsView(invitations: invitations, baseURL: baseURL)
-                    }.html.render()
-                )
+                PageLayout(title: "Invitations", pageContext: PageContext(from: context)) {
+                    AdminInvitationsView(invitations: invitations, baseURL: baseURL)
+                }.html
             }
         )
 
