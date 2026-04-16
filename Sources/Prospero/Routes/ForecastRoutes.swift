@@ -59,7 +59,7 @@ func addForecastRoutes(
             windows.sort { $0.quality > $1.quality }
         }
 
-        let pc = await PageContext.from(context, request: request, db: db)
+        let pc = PageContext(from: context)
         return ForecastResultsPage(
             pattern: pattern,
             windows: windows,

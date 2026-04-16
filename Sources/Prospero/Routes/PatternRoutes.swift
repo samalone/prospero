@@ -18,13 +18,13 @@ func addPatternRoutes(
             .filter(\.$userID == userID)
             .sort(\.$name)
             .all()
-        let pc = await PageContext.from(context, request: request, db: db)
+        let pc = PageContext(from: context)
         return PatternListPage(patterns: patterns, pageContext: pc).html
     }
 
     // New pattern form
     router.get("/patterns/new") { request, context -> HTML in
-        let pc = await PageContext.from(context, request: request, db: db)
+        let pc = PageContext(from: context)
         return PatternFormPage(pageContext: pc).html
     }
 
@@ -49,7 +49,7 @@ func addPatternRoutes(
         else {
             throw HTTPError(.notFound)
         }
-        let pc = await PageContext.from(context, request: request, db: db)
+        let pc = PageContext(from: context)
         return PatternFormPage(pattern: pattern, pageContext: pc).html
     }
 

@@ -97,13 +97,12 @@ struct Serve: AsyncParsableCommand {
             )
         )
 
-        // Middleware
+        // Middleware (SessionMiddleware now handles masquerade detection)
         router.add(middleware: LogRequestsMiddleware(.info))
         router.add(middleware: ErrorLoggingMiddleware(logger: logger))
         router.add(middleware: SessionMiddleware<AppRequestContext>(
             db: db, config: authConfig.session
         ))
-        router.add(middleware: MasqueradeMiddleware(db: db))
         router.add(middleware: AuthRedirectMiddleware<AppRequestContext>(
             loginPath: authConfig.loginPagePath
         ))
@@ -149,13 +148,42 @@ struct Serve: AsyncParsableCommand {
         let authed = router.group(context: AuthenticatedContext<AppRequestContext>.self)
         addPatternRoutes(to: authed, db: db, logger: logger)
         addForecastRoutes(to: authed, db: db, logger: logger)
-        addProfileRoutes(to: authed, db: db)
 
-        // Admin routes
+        // Profile (library routes + Prospero layout)
+        installProfileRoutes(on: authed, db: db) { vm, context in
+            htmlResponse(
+                PageLayout(title: "Profile", pageContext: PageContext(from: context)) {
+                    ProfileView(viewModel: vm)
+                }.html.render()
+            )
+        }
+
+        // Admin routes (library routes + Prospero layout)
         let baseURL = ProcessInfo.processInfo.environment["BASE_URL"]
             ?? "http://localhost:\(port)"
         let admin = router.group(context: AdminContext<AppRequestContext>.self)
-        addAdminRoutes(to: admin, db: db, logger: logger, baseURL: baseURL)
+        installAdminRoutes(
+            on: admin, db: db, logger: logger,
+            config: AdminRouteConfiguration(
+                baseURL: baseURL,
+                cookieName: authConfig.session.cookieName,
+                invitations: authConfig.invitations ?? InvitationConfiguration()
+            ),
+            renderUsers: { users, context in
+                htmlResponse(
+                    PageLayout(title: "Users", pageContext: PageContext(from: context)) {
+                        AdminUsersView(users: users)
+                    }.html.render()
+                )
+            },
+            renderInvitations: { invitations, baseURL, context in
+                htmlResponse(
+                    PageLayout(title: "Invitations", pageContext: PageContext(from: context)) {
+                        AdminInvitationsView(invitations: invitations, baseURL: baseURL)
+                    }.html.render()
+                )
+            }
+        )
 
         var app = Application(
             router: router,

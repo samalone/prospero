@@ -1,6 +1,5 @@
-import FluentKit
+import Foundation
 import HummingbirdAuth
-import Hummingbird
 
 /// View model carrying user/session info for the page layout.
 struct PageContext: Sendable {
@@ -33,33 +32,21 @@ struct PageContext: Sendable {
         self.masqueradingAs = context.masqueradingAs
     }
 
-    /// Build from an authenticated context + the original request.
-    /// Checks the session for masquerade state.
-    static func from(
-        _ context: AuthenticatedContext<AppRequestContext>,
-        request: Request,
-        db: Database
-    ) async -> PageContext {
-        var pc = PageContext(
-            userName: context.user.displayName,
-            isAdmin: context.user.isAdmin,
-            isLoggedIn: true,
-            flashMessages: context.flashMessages
-        )
+    /// Build from an authenticated context.
+    init(from context: AuthenticatedContext<AppRequestContext>) {
+        self.userName = context.user.displayName
+        self.isAdmin = context.realUserID != nil || context.user.isAdmin
+        self.isLoggedIn = true
+        self.flashMessages = context.flashMessages
+        self.masqueradingAs = context.masqueradingAs
+    }
 
-        // Check for masquerade state in the session.
-        let cookieName = "prospero-session"
-        if let token = request.cookies[cookieName]?.value,
-           let session = try? await AuthSession.query(on: db)
-            .filter(\.$token == token)
-            .first(),
-           session.realUserID != nil,
-           session.masqueradeUserID != nil
-        {
-            pc.masqueradingAs = context.user.displayName
-            pc.isAdmin = true  // Real user is admin if they could masquerade
-        }
-
-        return pc
+    /// Build from an admin context.
+    init(from context: AdminContext<AppRequestContext>) {
+        self.userName = context.user.displayName
+        self.isAdmin = true
+        self.isLoggedIn = true
+        self.flashMessages = context.flashMessages
+        self.masqueradingAs = context.masqueradingAs
     }
 }
