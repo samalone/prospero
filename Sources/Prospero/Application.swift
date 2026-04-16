@@ -88,7 +88,6 @@ struct Serve: AsyncParsableCommand {
                     ?? "http://localhost:\(port)"
             ),
             session: SessionConfiguration(
-                cookieName: "prospero-session",
                 secureCookie: ProcessInfo.processInfo.environment["DATABASE_URL"] != nil  // secure in prod
             ),
             invitations: InvitationConfiguration(),
@@ -164,7 +163,6 @@ struct Serve: AsyncParsableCommand {
             on: admin, db: db, logger: logger,
             config: AdminRouteConfiguration(
                 baseURL: baseURL,
-                cookieName: authConfig.session.cookieName,
                 invitations: authConfig.invitations ?? InvitationConfiguration()
             ),
             renderUsers: { users, context in
