@@ -148,13 +148,14 @@ struct CalendarDayRow: Component {
                             Text(entry.window.patternName)
                         }
                         .class("calendar-bar-label")
+
+                        CalendarInfoCard(entry: entry, quality: quality)
                     }
                     .class("calendar-bar")
                     .attribute(
                         named: "style",
                         value: "left: \(leftPct)%; width: \(widthPct)%; background: \(color); --goal-color: \(color)"
                     )
-                    .title("\(entry.window.patternName) — \(qualityLabel(quality))")
                 }
             }
             .class("calendar-day-track")
@@ -169,5 +170,64 @@ private func qualityLabel(_ quality: Double) -> String {
     case 0.5..<0.75: "Good"
     case 0.25..<0.5: "Fair"
     default: "Marginal"
+    }
+}
+
+struct CalendarInfoCard: Component {
+    var entry: (window: CalendarWindow, startFrac: Double, endFrac: Double)
+    var quality: Double
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "h:mm a"
+        return f
+    }()
+
+    var body: Component {
+        let w = entry.window.window
+        let s = w.summary
+        let showsBest = w.start != w.bestStart || w.end != w.bestEnd
+
+        return Div {
+            Div {
+                Element(name: "strong") { Text(entry.window.patternName) }
+                Text(" — \(qualityLabel(quality))")
+            }
+            .class("info-card-header")
+
+            Paragraph {
+                Text("\(Self.timeFormatter.string(from: w.start)) – \(Self.timeFormatter.string(from: w.end))")
+            }
+            .class("info-card-time")
+
+            if showsBest {
+                Paragraph {
+                    Text("Best: \(Self.timeFormatter.string(from: w.bestStart)) – \(Self.timeFormatter.string(from: w.bestEnd))")
+                }
+                .class("info-card-best")
+            }
+
+            Div {
+                infoRow("Temp", "\(Int(s.tempMin))–\(Int(s.tempMax))°F")
+                infoRow("Humidity", "≤\(Int(s.humidityMax))%")
+                infoRow("Rain", "≤\(Int(s.precipProbabilityMax))%")
+                infoRow("Wind", "\(Int(s.windSpeedMin))–\(Int(s.windSpeedMax)) kn")
+                infoRow("Clouds", "≤\(Int(s.cloudCoverMax))%")
+                if let lo = s.tideHeightMin, let hi = s.tideHeightMax {
+                    infoRow("Tide", "\(String(format: "%.1f", lo))–\(String(format: "%.1f", hi)) ft")
+                }
+            }
+            .class("info-card-conditions")
+        }
+        .class("calendar-info-card")
+    }
+
+    @ComponentBuilder
+    private func infoRow(_ label: String, _ value: String) -> Component {
+        Div {
+            Element(name: "span") { Text(label) }.class("info-card-label")
+            Element(name: "span") { Text(value) }.class("info-card-value")
+        }
+        .class("info-card-row")
     }
 }
