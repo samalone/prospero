@@ -524,11 +524,11 @@ button[type="submit"] {
 
 .calendar-bar-label {
     font-size: 0.7rem;
-    color: white;
+    color: #1a1a1a;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    text-shadow: 0 0 2px rgba(0,0,0,0.4);
+    text-shadow: 0 0 3px rgba(255,255,255,0.7);
 }
 
 /* Hue picker */

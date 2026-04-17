@@ -157,4 +157,17 @@ enum HuePlacer {
     static func goalColorLight(hue: Double) -> String {
         "oklch(92% 0.06 \(String(format: "%.1f", hue)))"
     }
+
+    /// Render a hue with chroma scaled by quality (0.0–1.0).
+    ///
+    /// Marginal matches get very low chroma (washed out, almost grey),
+    /// while excellent matches get full chroma (vibrant). Lightness is
+    /// also nudged up slightly at low chroma so low-quality bars don't
+    /// look artificially dark.
+    static func goalColor(hue: Double, quality: Double) -> String {
+        let clamped = max(0.0, min(1.0, quality))
+        let chroma = 0.03 + (0.18 - 0.03) * clamped
+        let lightness = 72.0 - 7.0 * clamped
+        return "oklch(\(String(format: "%.0f", lightness))% \(String(format: "%.3f", chroma)) \(String(format: "%.1f", hue)))"
+    }
 }

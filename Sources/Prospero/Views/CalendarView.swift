@@ -141,6 +141,8 @@ struct CalendarDayRow: Component {
                 for entry in dayWindows {
                     let widthPct = (entry.endFrac - entry.startFrac) * 100
                     let leftPct = entry.startFrac * 100
+                    let quality = entry.window.window.quality
+                    let color = HuePlacer.goalColor(hue: entry.window.hue, quality: quality)
                     Element(name: "div") {
                         Element(name: "span") {
                             Text(entry.window.patternName)
@@ -150,13 +152,22 @@ struct CalendarDayRow: Component {
                     .class("calendar-bar")
                     .attribute(
                         named: "style",
-                        value: "left: \(leftPct)%; width: \(widthPct)%; background: \(HuePlacer.goalColor(hue: entry.window.hue)); --goal-color: \(HuePlacer.goalColor(hue: entry.window.hue))"
+                        value: "left: \(leftPct)%; width: \(widthPct)%; background: \(color); --goal-color: \(color)"
                     )
-                    .title("\(entry.window.patternName)")
+                    .title("\(entry.window.patternName) — \(qualityLabel(quality))")
                 }
             }
             .class("calendar-day-track")
         }
         .class("calendar-row")
+    }
+}
+
+private func qualityLabel(_ quality: Double) -> String {
+    switch quality {
+    case 0.75...: "Excellent"
+    case 0.5..<0.75: "Good"
+    case 0.25..<0.5: "Fair"
+    default: "Marginal"
     }
 }
