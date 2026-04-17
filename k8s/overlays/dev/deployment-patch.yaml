@@ -1,0 +1,14 @@
+# Dev patches: use the locally-built image and bust the cache each deploy.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prospero
+spec:
+  template:
+    spec:
+      containers:
+        - name: prospero
+          # IfNotPresent so docker-desktop's k8s uses the image from the
+          # local Docker daemon rather than trying to pull from Docker Hub
+          # (which is what would fail with ImagePullBackOff).
+          imagePullPolicy: IfNotPresent

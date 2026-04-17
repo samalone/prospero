@@ -47,7 +47,7 @@ inject_for() {
     fi
 
     echo "Injecting $env secrets..."
-    op inject \
+    op inject --force \
         --account my.1password.com \
         --in-file "$template" \
         --out-file "$output"

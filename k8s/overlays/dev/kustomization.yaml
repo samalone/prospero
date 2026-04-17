@@ -11,6 +11,9 @@ resources:
   - secrets.yaml
   - ingress.yaml
 
+patches:
+  - path: deployment-patch.yaml
+
 # Locally-built dev image; re-tagged per build by scripts/deploy-dev.sh.
 images:
   - name: llamagraphics/prospero
