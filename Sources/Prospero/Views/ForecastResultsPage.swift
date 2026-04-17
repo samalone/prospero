@@ -40,9 +40,9 @@ struct ForecastResultsPage {
 
                     Div {
                         Element(name: "span") { Text("Sort by: ") }.class("sort-label")
-                        Link("Date", url: "/patterns/\(patternID)/forecast?sort=date")
+                        Link("Date", url: mountURL("/patterns/\(patternID)/forecast?sort=date"))
                             .class(sortByQuality ? "sort-option" : "sort-option active")
-                        Link("Quality", url: "/patterns/\(patternID)/forecast?sort=quality")
+                        Link("Quality", url: mountURL("/patterns/\(patternID)/forecast?sort=quality"))
                             .class(sortByQuality ? "sort-option active" : "sort-option")
                     }
                     .class("sort-controls")
@@ -58,7 +58,7 @@ struct ForecastResultsPage {
             }
 
             Div {
-                Link("Back to Patterns", url: "/patterns").class("button secondary")
+                Link("Back to Patterns", url: mountURL("/patterns")).class("button secondary")
             }
             .class("page-actions")
         }.html

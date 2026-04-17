@@ -12,7 +12,7 @@ struct PatternListPage {
                 if patterns.isEmpty {
                     Paragraph {
                         Text("No patterns yet. ")
-                        Link("Create one", url: "/patterns/new")
+                        Link("Create one", url: mountURL("/patterns/new"))
                         Text(" to get started.")
                     }
                     .class("empty-state")
@@ -35,7 +35,7 @@ struct PatternCard: Component {
     var body: Component {
         Div {
             H3 {
-                Link(pattern.name, url: "/patterns/\(pattern.id?.uuidString ?? "")/forecast")
+                Link(pattern.name, url: mountURL("/patterns/\(pattern.id?.uuidString ?? "")/forecast"))
             }
 
             if let location = pattern.locationName {
@@ -81,9 +81,9 @@ struct PatternCard: Component {
             .class("constraint-badges")
 
             Div {
-                Link("Forecast", url: "/patterns/\(pattern.id?.uuidString ?? "")/forecast")
+                Link("Forecast", url: mountURL("/patterns/\(pattern.id?.uuidString ?? "")/forecast"))
                     .class("button")
-                Link("Edit", url: "/patterns/\(pattern.id?.uuidString ?? "")/edit")
+                Link("Edit", url: mountURL("/patterns/\(pattern.id?.uuidString ?? "")/edit"))
                     .class("button secondary")
             }
             .class("card-actions")

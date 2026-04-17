@@ -39,7 +39,7 @@ func addPatternRoutes(
         pattern.userID = context.user.id
         try await pattern.save(on: db)
         try await hueService.recomputeHues(userID: context.user.id!)
-        return .redirect(to: "/patterns", type: .normal)
+        return .redirect(to: mountURL("/patterns"), type: .normal)
     }
 
     // Edit pattern form (only if owned by current user)
@@ -74,7 +74,7 @@ func addPatternRoutes(
         try await pattern.save(on: db)
         // Recompute in case isHueFixed status changed.
         try await hueService.recomputeHues(userID: context.user.id!)
-        return .redirect(to: "/patterns", type: .normal)
+        return .redirect(to: mountURL("/patterns"), type: .normal)
     }
 
     // Delete pattern
@@ -89,7 +89,7 @@ func addPatternRoutes(
         }
         try await pattern.delete(on: db)
         try await hueService.recomputeHues(userID: context.user.id!)
-        return .redirect(to: "/patterns", type: .normal)
+        return .redirect(to: mountURL("/patterns"), type: .normal)
     }
 }
 

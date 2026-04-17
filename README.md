@@ -44,13 +44,14 @@ By default Prospero uses SQLite at `./prospero.sqlite`. Set `DATABASE_URL` to us
 
 ### Environment
 
-| Variable             | Purpose                                                         |
-| -------------------- | --------------------------------------------------------------- |
-| `DATABASE_URL`       | PostgreSQL URL. If unset, SQLite is used.                       |
-| `DATA_DIR`           | Directory for the SQLite file (default: `.`).                   |
-| `WEBAUTHN_RP_ID`     | Relying-party ID (domain). Default `localhost`.                 |
-| `WEBAUTHN_RP_ORIGIN` | Origin URL including scheme. Default `http://localhost:<port>`. |
-| `BASE_URL`           | Canonical base URL for invite links.                            |
+| Variable              | Purpose                                                                                                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`        | PostgreSQL URL. If unset, SQLite is used.                                                                           |
+| `DATA_DIR`            | Directory for the SQLite file (default: `.`).                                                                       |
+| `WEBAUTHN_RP_ID`      | Relying-party ID (domain). Default `localhost`.                                                                     |
+| `WEBAUTHN_RP_ORIGIN`  | Origin URL including scheme. Default `http://localhost:<port>`.                                                     |
+| `BASE_URL`            | Canonical base URL for invite links.                                                                                |
+| `PROSPERO_BASE_PATH`  | Path prefix under which the app is mounted (e.g. `/prospero`). Default `/`. Also available as `--base-path` on the `serve` command. |
 
 ## Subcommands
 

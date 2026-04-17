@@ -66,8 +66,25 @@ struct Serve: AsyncParsableCommand {
     @Flag(help: "Run pending migrations before starting.")
     var autoMigrate: Bool = false
 
+    @Option(
+        name: .long,
+        help: """
+            Mount path under which to serve the app, e.g. '/prospero' for \
+            path-based routing behind a shared reverse proxy. Use '/' for \
+            root-mounted. Environment: PROSPERO_BASE_PATH.
+            """
+    )
+    var basePath: String = ProcessInfo.processInfo.environment["PROSPERO_BASE_PATH"] ?? "/"
+
     func run() async throws {
         let logger = Logger(label: "Prospero")
+
+        // Normalize and publish the mount path so AppRequestContext can read it.
+        let mountPath = normalizeMountPath(basePath)
+        setenv("PROSPERO_BASE_PATH", mountPath, 1)
+        if !mountPath.isEmpty {
+            logger.info("Serving under mount path \(mountPath)")
+        }
 
         let fluent = buildFluent(logger: logger)
         await addMigrations(to: fluent)
@@ -79,7 +96,11 @@ struct Serve: AsyncParsableCommand {
         let router = Router(context: AppRequestContext.self)
         let db = fluent.db()
 
-        // Auth configuration
+        // Auth configuration. The session cookie is scoped to the mount
+        // path (or "/" at root) so it doesn't leak to sibling apps on the
+        // same domain when we share an ingress. `pathPrefix` and
+        // `loginPagePath` carry the mount path so library code that reads
+        // them (e.g. AuthRedirectMiddleware) produces full-path URLs.
         let authConfig = AuthConfiguration<ProsperoUser>(
             passkey: PasskeyConfiguration(
                 relyingPartyID: ProcessInfo.processInfo.environment["WEBAUTHN_RP_ID"] ?? "localhost",
@@ -88,15 +109,22 @@ struct Serve: AsyncParsableCommand {
                     ?? "http://localhost:\(port)"
             ),
             session: SessionConfiguration(
+                cookiePath: mountPath.isEmpty ? "/" : mountPath,
                 secureCookie: ProcessInfo.processInfo.environment["DATABASE_URL"] != nil  // secure in prod
             ),
             invitations: InvitationConfiguration(),
+            pathPrefix: "\(mountPath)/auth",
+            loginPagePath: "\(mountPath)/login",
+            invitePagePath: "\(mountPath)/invite",
             callbacks: AuthCallbacks(
-                postLoginRedirect: { _ in "/patterns" }
+                postLoginRedirect: { _ in "\(mountPath)/patterns" },
+                postLogoutRedirect: "\(mountPath)/login"
             )
         )
 
-        // Middleware (SessionMiddleware now handles masquerade detection)
+        // Middleware (SessionMiddleware now handles masquerade detection).
+        // These are router-level so they run for every request, including
+        // health checks and static files.
         router.add(middleware: LogRequestsMiddleware(.info))
         router.add(middleware: ErrorLoggingMiddleware(logger: logger))
         router.add(middleware: SessionMiddleware<AppRequestContext>(
@@ -106,14 +134,31 @@ struct Serve: AsyncParsableCommand {
             loginPath: authConfig.loginPagePath
         ))
 
+        // Static files live under the mount path too; FileMiddleware strips
+        // the prefix before resolving against disk.
         if let staticPath = Bundle.module.path(forResource: "Static", ofType: nil) {
-            router.add(middleware: FileMiddleware(staticPath, logger: logger))
+            router.add(middleware: FileMiddleware(
+                staticPath,
+                urlBasePath: mountPath.isEmpty ? nil : mountPath,
+                logger: logger
+            ))
         } else {
             logger.warning("Static resources directory not found")
         }
 
+        // Liveness/readiness probe — cheap, no auth, no DB roundtrip.
+        // Public path (not under mountPath) so probes don't care about prefix.
+        router.get("/healthz") { _, _ -> Response in
+            Response(status: .ok, body: .init(byteBuffer: .init(string: "ok")))
+        }
+
+        // Every app route (including the auth ceremony endpoints and the
+        // public login/invite pages) lives under `app`. For mountPath "",
+        // this group is a zero-length prefix and routes land at the root.
+        let app = router.group(RouterPath(mountPath))
+
         // Login page (uses library component in Prospero's layout)
-        router.get("/login") { request, context -> PageLayout in
+        app.get("/login") { request, context -> PageLayout in
             let returnURL = request.uri.queryParameters.get("return")
             return PageLayout(title: "Sign In", includeAuthScript: true) {
                 LoginView(
@@ -125,7 +170,7 @@ struct Serve: AsyncParsableCommand {
         }
 
         // Invitation/registration page
-        router.get("/invite/:token") { request, context -> PageLayout in
+        app.get("/invite/:token") { request, context -> PageLayout in
             let token = context.parameters.get("token") ?? ""
             return PageLayout(title: "Create Account", includeAuthScript: true) {
                 RegistrationView(
@@ -136,15 +181,15 @@ struct Serve: AsyncParsableCommand {
         }
 
         // Auth API routes (begin-login, finish-login, etc.)
-        installAuthRoutes(on: router, db: db, config: authConfig, logger: logger)
+        installAuthRoutes(on: app, db: db, config: authConfig, logger: logger)
 
-        // Redirect root to patterns
-        router.get("/") { _, _ -> Response in
-            .redirect(to: "/patterns")
+        // Mount-root → patterns
+        app.get("/") { _, _ -> Response in
+            .redirect(to: "\(mountPath)/patterns")
         }
 
         // Authenticated routes
-        let authed = router.group(context: AuthenticatedContext<AppRequestContext>.self)
+        let authed = app.group(context: AuthenticatedContext<AppRequestContext>.self)
         addPatternRoutes(to: authed, db: db, logger: logger)
         addForecastRoutes(to: authed, db: db, logger: logger)
         addCalendarRoutes(to: authed, db: db, logger: logger)
@@ -158,8 +203,8 @@ struct Serve: AsyncParsableCommand {
 
         // Admin routes (library routes + Prospero layout)
         let baseURL = ProcessInfo.processInfo.environment["BASE_URL"]
-            ?? "http://localhost:\(port)"
-        let admin = router.group(context: AdminContext<AppRequestContext>.self)
+            ?? "http://localhost:\(port)\(mountPath)"
+        let admin = app.group(context: AdminContext<AppRequestContext>.self)
         installAdminRoutes(
             on: admin, db: db, logger: logger,
             config: AdminRouteConfiguration(
@@ -179,14 +224,14 @@ struct Serve: AsyncParsableCommand {
             }
         )
 
-        var app = Application(
+        var service = Application(
             router: router,
             configuration: .init(address: .hostname(hostname, port: port))
         )
-        app.addServices(fluent)
+        service.addServices(fluent)
 
-        logger.info("Prospero running on http://\(hostname):\(port)")
-        try await app.runService()
+        logger.info("Prospero running on http://\(hostname):\(port)\(mountPath)")
+        try await service.runService()
     }
 }
 

@@ -189,7 +189,7 @@ struct PatternFormPage {
             .attribute(named: "method", value: "POST")
             .attribute(
                 named: "action",
-                value: isEditing ? "/patterns/\(pattern!.id!.uuidString)" : "/patterns"
+                value: mountURL(isEditing ? "/patterns/\(pattern!.id!.uuidString)" : "/patterns")
             )
         }.html
     }

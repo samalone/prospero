@@ -10,27 +10,29 @@ struct PageLayout: ResponseGenerator {
     var includeAuthScript: Bool = false
     @ComponentBuilder var content: () -> Component
 
+    private func url(_ path: String) -> String { mountURL(path) }
+
     var html: HTML {
         HTML(
             .head(
                 .meta(.charset(.utf8)),
                 .meta(.name("viewport"), .content("width=device-width, initial-scale=1")),
                 .title("\(title) — Prospero"),
-                .stylesheet("/styles.css"),
-                .script(.src("/htmx.min.js")),
+                .stylesheet(url("/styles.css")),
+                .script(.src(url("/htmx.min.js"))),
                 .if(includeAuthScript, .raw(WebAuthnScript.scriptTag))
             ),
             .body(
                 .header(
                     .nav(
                         .class("top-nav"),
-                        .a(.href("/"), .text("Prospero")),
+                        .a(.href(url("/")), .text("Prospero")),
                         .if(pageContext.isLoggedIn,
                             .div(
                                 .class("nav-links"),
-                                .a(.href("/patterns"), .text("Patterns")),
-                                .a(.href("/calendar"), .text("Calendar")),
-                                .a(.href("/patterns/new"), .text("New Pattern"))
+                                .a(.href(url("/patterns")), .text("Patterns")),
+                                .a(.href(url("/calendar")), .text("Calendar")),
+                                .a(.href(url("/patterns/new")), .text("New Pattern"))
                             )
                         ),
                         .div(
@@ -54,7 +56,7 @@ struct PageLayout: ResponseGenerator {
                                                      .text("Viewing as \(pageContext.masqueradingAs ?? "")")),
                                                 .form(
                                                     .method(.post),
-                                                    .action("/admin/masquerade/end"),
+                                                    .action(url("/admin/masquerade/end")),
                                                     .input(.type(.hidden), .name("csrf_token"),
                                                            .value(pageContext.csrfToken ?? "")),
                                                     .element(named: "button",
@@ -67,18 +69,18 @@ struct PageLayout: ResponseGenerator {
                                                 )
                                             ),
                                             else: .group(
-                                                .a(.href("/profile"), .text("Profile")),
+                                                .a(.href(url("/profile")), .text("Profile")),
                                                 .if(pageContext.isAdmin,
                                                     .group(
                                                         .element(named: "hr", nodes: []),
-                                                        .a(.href("/admin/users"), .text("Users")),
-                                                        .a(.href("/admin/invitations"), .text("Invitations"))
+                                                        .a(.href(url("/admin/users")), .text("Users")),
+                                                        .a(.href(url("/admin/invitations")), .text("Invitations"))
                                                     )
                                                 ),
                                                 .element(named: "hr", nodes: []),
                                                 .form(
                                                     .method(.post),
-                                                    .action("/auth/logout"),
+                                                    .action(url("/auth/logout")),
                                                     .element(named: "button",
                                                         nodes: [
                                                             .attribute(named: "type", value: "submit"),

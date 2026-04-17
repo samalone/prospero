@@ -104,9 +104,24 @@ The quadratic ramp + fixed 85% lightness was tuned so black text reads on every 
 
 ## Subcommands
 
-- `prospero serve [--auto-migrate]` — web server
+- `prospero serve [--auto-migrate] [--base-path /prospero]` — web server. `--base-path` (or `PROSPERO_BASE_PATH`) mounts the app under a path prefix for path-based reverse-proxy sharing; defaults to `/`.
 - `prospero migrate [--revert]` — schema
 - `prospero invite --email … --expires-days N --base-url …` — produce an invitation URL
+
+## Mount-path mechanics
+
+When `--base-path /prospero` is set:
+
+- `normalizeMountPath` produces `""` for root or `"/prospero"` (leading slash, no trailing).
+- The normalized path is written back to `PROSPERO_BASE_PATH` so `AppRequestContext.mountPath` — a computed property — reads it.
+- All app routes are registered on `app = router.group(RouterPath(mountPath))`, so `/patterns` at root becomes `/prospero/patterns`.
+- Library route installers compose automatically: `installAuthRoutes(on: app, …)` lands auth routes at `/prospero/auth/…` because Hummingbird's `RouterGroup` prepends the outer path. `installProfileRoutes` and `installAdminRoutes` do the same.
+- Admin handlers' internal redirects use `context.mountPath` (which `AuthenticatedContext`/`AdminContext` copy through) to stay inside the app.
+- `FileMiddleware` takes `urlBasePath: mountPath` so `/prospero/styles.css` resolves to the file named `styles.css` in the static bundle.
+- `SessionConfiguration.cookiePath` is set to the mount path, scoping the session cookie so siblings on the same domain don't see it.
+- `AuthConfiguration.pathPrefix` / `.loginPagePath` / `.invitePagePath` carry the mount path, so anything reading them (notably `AuthRedirectMiddleware`) produces full-path redirects.
+- `/healthz` is **outside** the mount path — probes don't need to know where the app is mounted.
+- Views use the top-level `mountURL(_:)` helper to build href/action attributes.
 
 First registered user is automatically promoted to admin — this makes bootstrap painless. Don't "fix" it unless you also build a first-run admin setup flow.
 

@@ -34,7 +34,7 @@ struct CalendarView: Component {
             if patterns.isEmpty {
                 Paragraph {
                     Text("No patterns yet. ")
-                    Link("Create one", url: "/patterns/new")
+                    Link("Create one", url: mountURL("/patterns/new"))
                     Text(" to see its windows on the calendar.")
                 }
                 .class("empty-state")
