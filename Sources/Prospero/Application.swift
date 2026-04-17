@@ -98,9 +98,15 @@ struct Serve: AsyncParsableCommand {
 
         // Auth configuration. The session cookie is scoped to the mount
         // path (or "/" at root) so it doesn't leak to sibling apps on the
-        // same domain when we share an ingress. `pathPrefix` and
-        // `loginPagePath` carry the mount path so library code that reads
-        // them (e.g. AuthRedirectMiddleware) produces full-path URLs.
+        // same domain when we share an ingress.
+        //
+        // Important distinction:
+        // - `pathPrefix` is *relative* — it's composed with the router
+        //   group we pass to installAuthRoutes (which already carries
+        //   mountPath). Stay at "/auth" here.
+        // - `loginPagePath` / `invitePagePath` are *absolute* URLs used
+        //   by middleware and redirects outside the router, so they
+        //   include the mount path.
         let authConfig = AuthConfiguration<ProsperoUser>(
             passkey: PasskeyConfiguration(
                 relyingPartyID: ProcessInfo.processInfo.environment["WEBAUTHN_RP_ID"] ?? "localhost",
@@ -113,7 +119,7 @@ struct Serve: AsyncParsableCommand {
                 secureCookie: ProcessInfo.processInfo.environment["DATABASE_URL"] != nil  // secure in prod
             ),
             invitations: InvitationConfiguration(),
-            pathPrefix: "\(mountPath)/auth",
+            pathPrefix: "/auth",
             loginPagePath: "\(mountPath)/login",
             invitePagePath: "\(mountPath)/invite",
             callbacks: AuthCallbacks(
@@ -157,6 +163,11 @@ struct Serve: AsyncParsableCommand {
         // this group is a zero-length prefix and routes land at the root.
         let app = router.group(RouterPath(mountPath))
 
+        // Absolute path to the auth API for client-side WebAuthn JS —
+        // the ceremony scripts fetch `<authAPIPath>/begin-login` etc. from
+        // the browser, so this must include the mount prefix.
+        let authAPIPath = "\(mountPath)\(authConfig.pathPrefix)"
+
         // Login page (uses library component in Prospero's layout)
         app.get("/login") { request, context -> PageLayout in
             let returnURL = request.uri.queryParameters.get("return")
@@ -164,7 +175,7 @@ struct Serve: AsyncParsableCommand {
                 LoginView(
                     errorMessage: context.flashMessages.first(where: { $0.level == .error })?.text,
                     returnURL: returnURL,
-                    pathPrefix: authConfig.pathPrefix
+                    pathPrefix: authAPIPath
                 )
             }
         }
@@ -175,7 +186,7 @@ struct Serve: AsyncParsableCommand {
             return PageLayout(title: "Create Account", includeAuthScript: true) {
                 RegistrationView(
                     invitationToken: token,
-                    pathPrefix: authConfig.pathPrefix
+                    pathPrefix: authAPIPath
                 )
             }
         }
