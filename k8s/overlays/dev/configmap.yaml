@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prospero-config
+data:
+  # Dev runs behind the same shared nginx-ingress as prod, just on the
+  # `localhost` host. Mount under /prospero to mirror prod exactly.
+  PROSPERO_BASE_PATH: "/prospero"
+  # WebAuthn relying party — passkeys are bound to this domain. Using
+  # `localhost` as the RP ID means passkeys created in dev only work from
+  # localhost, never collide with prod passkeys.
+  WEBAUTHN_RP_ID: "localhost"
+  WEBAUTHN_RP_ORIGIN: "https://localhost"
+  BASE_URL: "https://localhost/prospero"

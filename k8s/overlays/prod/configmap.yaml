@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prospero-config
+data:
+  # Shared-domain prod: mount under /prospero so the ingress can route
+  # sibling apps under other path prefixes.
+  PROSPERO_BASE_PATH: "/prospero"
+  # WebAuthn relying party is the canonical domain. Passkeys are bound
+  # to the RP ID, so changing this invalidates existing passkeys.
+  WEBAUTHN_RP_ID: "propercourse.app"
+  WEBAUTHN_RP_ORIGIN: "https://propercourse.app"
+  BASE_URL: "https://propercourse.app/prospero"

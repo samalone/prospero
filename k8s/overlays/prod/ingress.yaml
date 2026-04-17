@@ -1,0 +1,47 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prospero
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - propercourse.app
+        - proper-course.app
+        - proper-score.app
+      # Shared TLS secret — cert-manager issues once, ProperCourse,
+      # eyc-weather, and Prospero all reference it.
+      secretName: proper-course-tls
+  rules:
+    - host: propercourse.app
+      http:
+        paths:
+          - pathType: Prefix
+            path: /prospero
+            backend:
+              service:
+                name: prospero
+                port:
+                  number: 80
+    - host: proper-course.app
+      http:
+        paths:
+          - pathType: Prefix
+            path: /prospero
+            backend:
+              service:
+                name: prospero
+                port:
+                  number: 80
+    - host: proper-score.app
+      http:
+        paths:
+          - pathType: Prefix
+            path: /prospero
+            backend:
+              service:
+                name: prospero
+                port:
+                  number: 80

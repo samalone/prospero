@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Shared resources between dev and prod. Overlays patch the image tag,
+# config, secrets, and (prod only) the ingress.
+resources:
+  - deployment.yaml
+  - service.yaml
+
+images:
+  - name: llamagraphics/prospero
+    newTag: "latest"

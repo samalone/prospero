@@ -132,7 +132,46 @@ First registered user is automatically promoted to admin — this makes bootstra
 
 ## Deployment
 
-Target is Linode Kubernetes with a shared PostgreSQL pod (cost constraint — can't afford a per-app block-storage PG instance). Multiple apps sit behind Nginx with path-based routing, hence the cookie-scoping requirement. Deployment manifests aren't in this repo yet.
+Linode Kubernetes (`kubectl --context pc`). Shares a domain (`propercourse.app`, `proper-course.app`, `proper-score.app`) and a TLS cert (`proper-course-tls`) with `course-server` (ProperCourse) and `eyc-weather` via nginx-ingress path-based routing. Shares the PostgreSQL pod in the `life-balance` namespace (`postgres.life-balance.svc.cluster.local:5432`) — cost constraint, can't afford per-app block-storage PG.
+
+**Layout:**
+
+```
+k8s/
+  base/                        — shared deployment + service
+    deployment.yaml            — app container, /healthz probes, envFrom config+secrets
+    service.yaml               — ClusterIP 80 → 8080
+    kustomization.yaml
+  overlays/
+    dev/                       — docker-desktop cluster, host=localhost, path=/prospero
+      configmap.yaml           — PROSPERO_BASE_PATH=/prospero, RP_ID=localhost
+      ingress.yaml             — nginx ingress alongside existing drupal6/registrar apps
+      secrets.yaml.template    — 1Password op:// refs; `inject-secrets.sh dev` produces secrets.yaml
+      kustomization.yaml
+    prod/                      — pc cluster, three domains, path=/prospero
+      configmap.yaml           — PROSPERO_BASE_PATH=/prospero, RP_ID=propercourse.app
+      ingress.yaml             — three hosts → /prospero, shared proper-course-tls
+      secrets.yaml.template    — 1Password op:// refs; `inject-secrets.sh prod` produces secrets.yaml
+      kustomization.yaml       — image tag pinned here; bumped by scripts/release.sh
+```
+
+Dev mirrors prod (same mount path, same ingress pattern) so bugs show up in dev before hitting prod. The only differences are the domain, the WebAuthn RP ID, and the image tag.
+
+**Scripts (in `scripts/`):**
+
+- `bootstrap-database.sh [dev|prod]` — one-time: `exec` into the shared postgres pod and create the `prospero` role + database. Password pulled from 1Password.
+- `inject-secrets.sh [dev|prod|all]` — `op inject` the `*.template` files to produce gitignored `secrets.yaml` files.
+- `deploy-dev.sh` — build image, apply dev kustomization, rollout. Log to `logs/deploy-dev.log`.
+- `bump.sh [major|minor|patch]` — update image tag in prod kustomization.
+- `build-production-image.sh` — multi-platform buildx (amd64 + arm64), push to Docker Hub.
+- `release.sh [major|minor|patch]` — bump + build + apply + rollout + git commit/tag/push. Reverts the version bump on build failure.
+
+**Invariants / conventions:**
+
+- Prospero runs in the `default` namespace on both clusters (same as course-server / eyc-weather / drupal6). Services referenced by an ingress must be in the same namespace as the ingress.
+- `/healthz` is always at the domain root (not under the mount path) so readiness/liveness probes don't depend on config.
+- `secrets.yaml` is never committed; only `secrets.yaml.template` with 1Password references.
+- The shared Postgres pod is accessed over its ClusterIP service, not via a sidecar or port-forward.
 
 ## Memory / user preferences
 

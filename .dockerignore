@@ -1,0 +1,14 @@
+.build
+.swiftpm
+.vscode
+.git
+.gitignore
+prospero.sqlite
+*.sqlite
+backups
+docs
+README.md
+CLAUDE.md
+k8s
+kubernetes
+scripts

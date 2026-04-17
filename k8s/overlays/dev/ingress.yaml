@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prospero
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "14400"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "14400"
+spec:
+  ingressClassName: nginx
+  tls:
+    # Shared self-signed cert with the other docker-desktop tenants
+    # (drupal6, registrar). Provisioned out of band.
+    - hosts:
+        - localhost
+      secretName: localhost-tls
+  rules:
+    - host: localhost
+      http:
+        paths:
+          - pathType: Prefix
+            path: /prospero
+            backend:
+              service:
+                name: prospero
+                port:
+                  number: 80

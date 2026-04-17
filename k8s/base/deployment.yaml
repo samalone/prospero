@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prospero
+  labels:
+    app: prospero
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prospero
+  # Recreate (not RollingUpdate) because we don't expect to need zero-downtime
+  # deploys for a single-replica app; keeps migrations straightforward.
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: prospero
+    spec:
+      containers:
+        - name: prospero
+          image: llamagraphics/prospero:latest
+          imagePullPolicy: Always
+          args: ["serve", "--auto-migrate", "--hostname", "0.0.0.0", "--port", "8080"]
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: prospero-config
+            - secretRef:
+                name: prospero-secrets
+          # /healthz is lightweight — no DB roundtrip — and always at the
+          # domain root regardless of PROSPERO_BASE_PATH.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"

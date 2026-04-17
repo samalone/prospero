@@ -2,3 +2,6 @@
 /prospero.sqlite
 /.swiftpm
 /.vscode
+# 1Password-injected secret manifests — templates are committed, outputs aren't.
+k8s/overlays/*/secrets.yaml
+/logs
