@@ -147,6 +147,7 @@ struct Serve: AsyncParsableCommand {
         let authed = router.group(context: AuthenticatedContext<AppRequestContext>.self)
         addPatternRoutes(to: authed, db: db, logger: logger)
         addForecastRoutes(to: authed, db: db, logger: logger)
+        addCalendarRoutes(to: authed, db: db, logger: logger)
 
         // Profile (library routes + Prospero layout)
         installProfileRoutes(on: authed, db: db) { vm, context in

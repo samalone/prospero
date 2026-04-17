@@ -29,6 +29,7 @@ struct PageLayout: ResponseGenerator {
                             .div(
                                 .class("nav-links"),
                                 .a(.href("/patterns"), .text("Patterns")),
+                                .a(.href("/calendar"), .text("Calendar")),
                                 .a(.href("/patterns/new"), .text("New Pattern"))
                             )
                         ),

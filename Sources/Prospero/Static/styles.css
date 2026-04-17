@@ -426,6 +426,111 @@ button[type="submit"] {
     margin-top: 0.1rem;
 }
 
+/* Calendar */
+.calendar-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.875rem;
+}
+
+.legend-swatch {
+    display: inline-block;
+    width: 0.85rem;
+    height: 0.85rem;
+    border-radius: 3px;
+}
+
+.calendar-grid {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.calendar-row {
+    display: grid;
+    grid-template-columns: 7rem 1fr;
+    border-bottom: 1px solid var(--border);
+}
+
+.calendar-row:last-child {
+    border-bottom: none;
+}
+
+.calendar-header {
+    background: var(--bg);
+}
+
+.calendar-day-label {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+}
+
+.calendar-hours {
+    position: relative;
+    height: 1.5rem;
+}
+
+.hour-label {
+    position: absolute;
+    top: 0.25rem;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    transform: translateX(-50%);
+}
+
+.calendar-day-track {
+    position: relative;
+    height: 2.25rem;
+    overflow: hidden;
+}
+
+.calendar-gridline {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--border);
+    opacity: 0.5;
+}
+
+.calendar-bar {
+    position: absolute;
+    top: 0.3rem;
+    bottom: 0.3rem;
+    border-radius: 3px;
+    overflow: hidden;
+    cursor: default;
+    display: flex;
+    align-items: center;
+    padding: 0 0.35rem;
+}
+
+.calendar-bar-label {
+    font-size: 0.7rem;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: 0 0 2px rgba(0,0,0,0.4);
+}
+
 /* Hue picker */
 .hue-picker {
     display: flex;
