@@ -1,3 +1,4 @@
 /.build
 /prospero.sqlite
 /.swiftpm
+/.vscode
