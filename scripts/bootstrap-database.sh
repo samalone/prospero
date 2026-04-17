@@ -3,8 +3,13 @@
 # postgres pod in the `life-balance` namespace. Run once per cluster
 # (dev and prod each).
 #
-# The password is pulled from 1Password and sent in via STDIN to psql,
-# so it never appears in process arguments or shell history.
+# The shared pod's superuser is `lifebalance` (inherited from when
+# Life Balance first spun it up). Its password is in the
+# `postgres-secret` secret in the `life-balance` namespace.
+# The Prospero role password comes from 1Password.
+#
+# Nothing sensitive appears in process args or shell history: both
+# passwords are piped into psql via PSQL_VARS / stdin.
 #
 # Usage:
 #   ./scripts/bootstrap-database.sh dev    # docker-desktop context
@@ -28,22 +33,34 @@ if ! op account list --account my.1password.com &> /dev/null; then
     exit 1
 fi
 
-# Fetch the Prospero user's password (stored separately from the URL so
-# we can use it here without parsing the URL).
-PW=$(op read --account my.1password.com \
+# Prospero role password from 1Password.
+PROSPERO_PW=$(op read --account my.1password.com \
     "op://llama-infrastructure/$OP_ITEM/password")
-
-if [[ -z "$PW" ]]; then
+if [[ -z "$PROSPERO_PW" ]]; then
     echo "Error: empty password from 1Password item $OP_ITEM." >&2
     echo "Item must have a 'password' field with the role password." >&2
     exit 1
 fi
 
-# Find the postgres pod in the life-balance namespace.
+# Superuser password from the postgres-secret in life-balance namespace.
+SUPER_PW=$(kubectl --context "$KCTX" -n life-balance \
+    get secret postgres-secret \
+    -o go-template='{{ .data.POSTGRES_PASSWORD | base64decode }}')
+if [[ -z "$SUPER_PW" ]]; then
+    echo "Error: could not read POSTGRES_PASSWORD from secret." >&2
+    exit 1
+fi
+
+# Superuser name from the postgres-config configmap.
+SUPER_USER=$(kubectl --context "$KCTX" -n life-balance \
+    get configmap postgres-config \
+    -o go-template='{{ .data.POSTGRES_USER }}')
+SUPER_USER="${SUPER_USER:-lifebalance}"
+
+# Find the postgres pod.
 POD=$(kubectl --context "$KCTX" -n life-balance get pods \
     -l app=postgres -o name 2>/dev/null | head -1)
 if [[ -z "$POD" ]]; then
-    # Older manifests may not label pods — fall back to name match.
     POD=$(kubectl --context "$KCTX" -n life-balance get pods \
         -o name | grep -E 'postgres' | head -1)
 fi
@@ -52,23 +69,27 @@ if [[ -z "$POD" ]]; then
     exit 1
 fi
 
-echo "Bootstrapping Prospero database on $KCTX ($POD)..."
+echo "Bootstrapping Prospero database on $KCTX ($POD) as $SUPER_USER..."
 
-# Create the role and database idempotently. The role is owner so it can
-# run migrations without separate GRANTs.
+# Run psql inside the pod. Pass the Prospero password as a psql variable
+# (-v) so it's properly quoted via format('%L', ...), and PGPASSWORD
+# through env so the superuser auth doesn't prompt.
 kubectl --context "$KCTX" -n life-balance exec -i "$POD" -- \
-    psql -U postgres -v ON_ERROR_STOP=1 -v password="$PW" <<'SQL'
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'prospero') THEN
-        EXECUTE format('CREATE ROLE prospero LOGIN PASSWORD %L', :'password');
-    ELSE
-        EXECUTE format('ALTER ROLE prospero WITH LOGIN PASSWORD %L', :'password');
-    END IF;
-END $$;
+    env PGPASSWORD="$SUPER_PW" \
+    psql -U "$SUPER_USER" -d postgres \
+         -v ON_ERROR_STOP=1 \
+         -v prospero_pw="$PROSPERO_PW" <<'SQL'
+-- Create or update the prospero role idempotently. `format %L` quotes
+-- the password literal correctly so special characters don't break SQL.
+SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'prospero')
+    THEN format('ALTER  ROLE prospero WITH LOGIN PASSWORD %L', :'prospero_pw')
+    ELSE format('CREATE ROLE prospero      LOGIN PASSWORD %L', :'prospero_pw')
+END \gexec
 
+-- Create the prospero database owned by the prospero role if missing.
 SELECT 'CREATE DATABASE prospero OWNER prospero'
- WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'prospero')\gexec
+ WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'prospero')
+\gexec
 SQL
 
 echo "Done."
