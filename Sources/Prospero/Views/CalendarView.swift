@@ -143,6 +143,12 @@ struct CalendarDayRow: Component {
                     let leftPct = entry.startFrac * 100
                     let quality = entry.window.window.quality
                     let color = HuePlacer.goalColor(hue: entry.window.hue, quality: quality)
+                    // Three-way card anchoring: left-align near the left
+                    // edge, right-align near the right edge, center in
+                    // between.
+                    let cardAnchor: String = entry.startFrac < 0.2
+                        ? "left"
+                        : (entry.startFrac >= 0.65 ? "right" : "center")
                     Element(name: "div") {
                         Element(name: "span") {
                             Text(entry.window.patternName)
@@ -151,7 +157,8 @@ struct CalendarDayRow: Component {
 
                         CalendarInfoCard(entry: entry, quality: quality)
                     }
-                    .class("calendar-bar")
+                    .class("calendar-bar card-anchor-\(cardAnchor)")
+                    .attribute(named: "tabindex", value: "0")
                     .attribute(
                         named: "style",
                         value: "left: \(leftPct)%; width: \(widthPct)%; background: \(color); --goal-color: \(color)"

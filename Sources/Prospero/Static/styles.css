@@ -532,8 +532,9 @@ button[type="submit"] {
     position: absolute;
     top: calc(100% + 0.25rem);
     left: 0;
-    min-width: 14rem;
-    max-width: 18rem;
+    right: auto;
+    min-width: 18rem;
+    max-width: 22rem;
     padding: 0.75rem 1rem;
     background: var(--surface);
     border: 1px solid var(--border);
@@ -548,8 +549,36 @@ button[type="submit"] {
     z-index: 10;
 }
 
-.calendar-bar:hover .calendar-info-card {
+.calendar-bar:hover .calendar-info-card,
+.calendar-bar:focus .calendar-info-card,
+.calendar-bar:focus-within .calendar-info-card {
     opacity: 1;
+    pointer-events: auto;
+}
+
+.calendar-bar:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+}
+
+.calendar-bar:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+}
+
+/* Anchor the card relative to the bar based on where the bar sits in
+   the track. Left: grows rightward from the bar's left edge. Right:
+   grows leftward from the bar's right edge. Center: centered on the
+   bar's midpoint. */
+.calendar-bar.card-anchor-right .calendar-info-card {
+    left: auto;
+    right: 0;
+}
+
+.calendar-bar.card-anchor-center .calendar-info-card {
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
 }
 
 .info-card-header {
