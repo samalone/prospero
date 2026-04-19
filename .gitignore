@@ -5,3 +5,5 @@
 # 1Password-injected secret manifests — templates are committed, outputs aren't.
 k8s/overlays/*/secrets.yaml
 /logs
+# Local Claude Code session state — not part of the project.
+/.claude
