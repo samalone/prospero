@@ -136,9 +136,13 @@ struct PatternMatcher: Sendable {
             return false
         }
 
-        // Tide height constraint
-        if let minHeight = pattern.tideHeightMin {
-            guard let height = hour.tideHeight, height >= minHeight else {
+        // Tide height constraint (min and/or max).
+        if pattern.tideHeightMin != nil || pattern.tideHeightMax != nil {
+            guard let height = hour.tideHeight else { return false }
+            if let minHeight = pattern.tideHeightMin, height < minHeight {
+                return false
+            }
+            if let maxHeight = pattern.tideHeightMax, height > maxHeight {
                 return false
             }
         }

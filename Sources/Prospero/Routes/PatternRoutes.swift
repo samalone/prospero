@@ -136,32 +136,18 @@ struct PatternInput: Decodable {
     var latest_hour: String?
     var tide_requirement: String?
     var tide_height_min: String?
+    var tide_height_max: String?
     var hue: String?
     var is_hue_fixed: String?
 
     func toModel() -> ActivityPattern {
-        ActivityPattern(
-            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-            latitude: Double(latitude) ?? 0,
-            longitude: Double(longitude) ?? 0,
-            locationName: location_name?.nilIfEmpty,
-            tideStation: tide_station?.nilIfEmpty,
-            durationHours: Double(duration_hours) ?? 4,
-            temperatureMin: temperature_min?.toDouble,
-            temperatureMax: temperature_max?.toDouble,
-            humidityMax: humidity_max?.toDouble,
-            precipProbabilityMax: precip_probability_max?.toDouble,
-            windSpeedMin: wind_speed_min?.toDouble,
-            windSpeedMax: wind_speed_max?.toDouble,
-            cloudCoverMax: cloud_cover_max?.toDouble,
-            requiresDaylight: requires_daylight == "true",
-            earliestHour: earliest_hour?.toInt,
-            latestHour: latest_hour?.toInt,
-            tideRequirement: TideRequirement(rawValue: tide_requirement ?? "any") ?? .any,
-            tideHeightMin: tide_height_min?.toDouble,
-            hue: hue?.toDouble ?? 0,
-            isHueFixed: is_hue_fixed == "true"
-        )
+        // Seed non-optional fields that `apply` doesn't unconditionally set
+        // (today, just `hue` — we only overwrite it when the form provides
+        // one so an existing server-assigned hue survives a save).
+        let pattern = ActivityPattern()
+        pattern.hue = 0
+        apply(to: pattern)
+        return pattern
     }
 
     func apply(to pattern: ActivityPattern) {
@@ -183,6 +169,7 @@ struct PatternInput: Decodable {
         pattern.latestHour = latest_hour?.toInt
         pattern.tideRequirement = TideRequirement(rawValue: tide_requirement ?? "any") ?? .any
         pattern.tideHeightMin = tide_height_min?.toDouble
+        pattern.tideHeightMax = tide_height_max?.toDouble
         if let h = hue?.toDouble {
             pattern.hue = h
         }

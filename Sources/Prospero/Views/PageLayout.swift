@@ -10,6 +10,8 @@ struct PageLayout: ResponseGenerator {
     var includeAuthScript: Bool = false
     /// Opt in to the Leaflet assets + pattern-map.js (pattern editor only).
     var includeMapScript: Bool = false
+    /// Opt in to the range-slider.js custom component (pattern editor).
+    var includeRangeSliderScript: Bool = false
     @ComponentBuilder var content: () -> Component
 
     private func url(_ path: String) -> String { mountURL(path) }
@@ -25,7 +27,8 @@ struct PageLayout: ResponseGenerator {
                 .script(.src(url("/htmx.min.js"))),
                 .if(includeAuthScript, .raw(WebAuthnScript.scriptTag)),
                 .if(includeMapScript, .script(.src(url("/leaflet.js")))),
-                .if(includeMapScript, .script(.src(url("/pattern-map.js")), .attribute(named: "defer")))
+                .if(includeMapScript, .script(.src(url("/pattern-map.js")), .attribute(named: "defer"))),
+                .if(includeRangeSliderScript, .script(.src(url("/range-slider.js")), .attribute(named: "defer")))
             ),
             .body(
                 .header(

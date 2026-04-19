@@ -32,6 +32,9 @@ struct PatternListPage {
 struct PatternCard: Component {
     var pattern: ActivityPattern
 
+    /// Tide heights are displayed to one decimal ("2.5 ft").
+    private func tideFt(_ v: Double) -> String { String(format: "%.1f", v) }
+
     var body: Component {
         Div {
             H3 {
@@ -69,8 +72,12 @@ struct PatternCard: Component {
                     ConstraintBadge(label: "Clouds", value: "≤\(Int(max))%")
                 }
 
-                if let min = pattern.tideHeightMin {
-                    ConstraintBadge(label: "Tide", value: "≥\(String(format: "%.1f", min)) ft")
+                if let min = pattern.tideHeightMin, let max = pattern.tideHeightMax {
+                    ConstraintBadge(label: "Tide", value: "\(tideFt(min))–\(tideFt(max)) ft")
+                } else if let min = pattern.tideHeightMin {
+                    ConstraintBadge(label: "Tide", value: "≥\(tideFt(min)) ft")
+                } else if let max = pattern.tideHeightMax {
+                    ConstraintBadge(label: "Tide", value: "≤\(tideFt(max)) ft")
                 }
 
                 ConstraintBadge(
