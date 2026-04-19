@@ -123,6 +123,9 @@ struct PatternMatcher: Sendable {
         if let max = pattern.humidityMax, hour.humidity > max {
             return false
         }
+        if let min = pattern.precipProbabilityMin, hour.precipProbability < min {
+            return false
+        }
         if let max = pattern.precipProbabilityMax, hour.precipProbability > max {
             return false
         }
@@ -192,9 +195,25 @@ struct PatternMatcher: Sendable {
                 scores.append(Swift.max(0, 1.0 - hour.humidity / humMax))
             }
 
-            // Precipitation: lower is better.
-            if let precipMax = pattern.precipProbabilityMax, precipMax > 0 {
+            // Precipitation:
+            //  - min + max: center of range is best (user wants a specific band).
+            //  - max only: lower is better (default: drier is nicer).
+            //  - min only: higher is better (e.g. "work inside when it rains").
+            if let precipMin = pattern.precipProbabilityMin,
+               let precipMax = pattern.precipProbabilityMax {
+                let range = precipMax - precipMin
+                if range > 0 {
+                    let center = (precipMin + precipMax) / 2
+                    let dist = abs(hour.precipProbability - center) / (range / 2)
+                    scores.append(Swift.max(0, 1.0 - dist))
+                }
+            } else if let precipMax = pattern.precipProbabilityMax, precipMax > 0 {
                 scores.append(Swift.max(0, 1.0 - hour.precipProbability / precipMax))
+            } else if let precipMin = pattern.precipProbabilityMin, precipMin < 100 {
+                // Higher is better; scale so precipMin → 0, 100 → 1.
+                scores.append(
+                    Swift.max(0, (hour.precipProbability - precipMin) / (100 - precipMin))
+                )
             }
 
             // Wind: center of range is best.

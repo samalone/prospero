@@ -127,6 +127,7 @@ struct PatternInput: Decodable {
     var temperature_min: String?
     var temperature_max: String?
     var humidity_max: String?
+    var precip_probability_min: String?
     var precip_probability_max: String?
     var wind_speed_min: String?
     var wind_speed_max: String?
@@ -160,6 +161,7 @@ struct PatternInput: Decodable {
         pattern.temperatureMin = temperature_min?.toDouble
         pattern.temperatureMax = temperature_max?.toDouble
         pattern.humidityMax = humidity_max?.toDouble
+        pattern.precipProbabilityMin = precip_probability_min?.toDouble
         pattern.precipProbabilityMax = precip_probability_max?.toDouble
         pattern.windSpeedMin = wind_speed_min?.toDouble
         pattern.windSpeedMax = wind_speed_max?.toDouble

@@ -58,8 +58,12 @@ struct PatternCard: Component {
                     ConstraintBadge(label: "Humidity", value: "≤\(Int(max))%")
                 }
 
-                if let max = pattern.precipProbabilityMax {
+                if let min = pattern.precipProbabilityMin, let max = pattern.precipProbabilityMax {
+                    ConstraintBadge(label: "Rain", value: "\(Int(min))–\(Int(max))%")
+                } else if let max = pattern.precipProbabilityMax {
                     ConstraintBadge(label: "Rain", value: "≤\(Int(max))%")
+                } else if let min = pattern.precipProbabilityMin {
+                    ConstraintBadge(label: "Rain", value: "≥\(Int(min))%")
                 }
 
                 if let max = pattern.windSpeedMax {

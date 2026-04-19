@@ -97,12 +97,16 @@ struct PatternFormPage {
 
                     RangeSliderField(
                         title: "Rain probability",
+                        lowName: "precip_probability_min",
                         highName: "precip_probability_max",
+                        lowValue: pattern?.precipProbabilityMin.map { String(Int($0)) },
                         highValue: pattern?.precipProbabilityMax.map { String(Int($0)) },
                         min: 0, max: 100, step: 5,
                         unit: "%",
                         labelAny: "Any rain probability",
-                        labelBelow: "Below {high}{unit}"
+                        labelBelow: "Below {high}{unit}",
+                        labelAbove: "Above {low}{unit}",
+                        labelBetween: "{low}–{high}{unit}"
                     )
 
                     RangeSliderField(

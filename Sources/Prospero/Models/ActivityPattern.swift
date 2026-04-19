@@ -51,6 +51,9 @@ final class ActivityPattern: Model, @unchecked Sendable {
     @OptionalField(key: "precip_probability_max")
     var precipProbabilityMax: Double?
 
+    @OptionalField(key: "precip_probability_min")
+    var precipProbabilityMin: Double?
+
     @OptionalField(key: "wind_speed_min")
     var windSpeedMin: Double?
 
@@ -110,6 +113,7 @@ final class ActivityPattern: Model, @unchecked Sendable {
         temperatureMin: Double? = nil,
         temperatureMax: Double? = nil,
         humidityMax: Double? = nil,
+        precipProbabilityMin: Double? = nil,
         precipProbabilityMax: Double? = nil,
         windSpeedMin: Double? = nil,
         windSpeedMax: Double? = nil,
@@ -133,6 +137,7 @@ final class ActivityPattern: Model, @unchecked Sendable {
         self.temperatureMin = temperatureMin
         self.temperatureMax = temperatureMax
         self.humidityMax = humidityMax
+        self.precipProbabilityMin = precipProbabilityMin
         self.precipProbabilityMax = precipProbabilityMax
         self.windSpeedMin = windSpeedMin
         self.windSpeedMax = windSpeedMax
