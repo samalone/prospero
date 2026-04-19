@@ -39,16 +39,32 @@ if ! docker buildx version &> /dev/null; then
     exit 1
 fi
 
-# Pick a builder — prefer a named multi-arch builder if one exists.
+# Prefer the named multi-arch builder if it exists — it's the one with a
+# native AMD64 node on the Intel Mac build server, created by
+# scripts/setup-remote-builder.sh. Without it, buildx falls back to
+# qemu emulation for amd64, which stalls and sometimes corrupts heavy
+# Swift compilations.
+#
+# Stop the remote builder on exit so SSH connections don't accumulate;
+# the builder auto-starts on next use.
 BUILDER="prospero-multi-arch"
+REMOTE_BUILDER=""
+cleanup() {
+    if [[ -n "$REMOTE_BUILDER" ]]; then
+        docker buildx stop "$REMOTE_BUILDER" 2>/dev/null || true
+    fi
+}
+trap cleanup EXIT
+
 if docker buildx inspect "$BUILDER" &> /dev/null; then
-    echo "Using buildx builder '$BUILDER'"
+    echo "Using remote multi-arch builder '$BUILDER'"
     docker buildx use "$BUILDER"
+    REMOTE_BUILDER="$BUILDER"
 elif docker buildx inspect multiplatform &> /dev/null; then
-    echo "Using buildx builder 'multiplatform'"
+    echo "Using buildx builder 'multiplatform' (qemu — run scripts/setup-remote-builder.sh for native)"
     docker buildx use multiplatform
 else
-    echo "Creating buildx builder 'multiplatform'..."
+    echo "Creating buildx builder 'multiplatform' (qemu — run scripts/setup-remote-builder.sh for native)..."
     docker buildx create --name multiplatform --use
 fi
 

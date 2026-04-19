@@ -45,6 +45,15 @@ revert() {
 }
 trap revert EXIT
 
+# Tests run locally on native arm64 before we kick off the
+# multi-platform production build, which skips them to avoid flaky qemu
+# emulation. Fail fast if tests break.
+echo "==> Running tests locally..."
+if ! swift test; then
+    echo "Error: tests failed. Aborting release." >&2
+    exit 1
+fi
+
 echo "==> Bumping $BUMP version..."
 ./scripts/bump.sh "$BUMP"
 
