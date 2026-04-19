@@ -5,6 +5,9 @@ import PlotHTMX
 struct CalendarView: Component {
     var windows: [CalendarWindow]
     var patterns: [ActivityPattern]
+    /// Per-pattern sunrise/sunset keyed by local midnight. Used to shade
+    /// nighttime hours on each track with that pattern's real solar times.
+    var solarByPattern: [String: PatternSolar] = [:]
 
     private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -39,10 +42,10 @@ struct CalendarView: Component {
                 }
                 .class("empty-state")
             } else {
-                // Legend
+                // Legend — each entry links to that pattern's editor.
                 Div {
                     for pattern in patterns {
-                        Element(name: "span") {
+                        Element(name: "a") {
                             Element(name: "span") {}
                                 .class("legend-swatch")
                                 .attribute(
@@ -52,6 +55,10 @@ struct CalendarView: Component {
                             Text(pattern.name)
                         }
                         .class("legend-item")
+                        .attribute(
+                            named: "href",
+                            value: mountURL("/patterns/\(pattern.id?.uuidString ?? "")/edit")
+                        )
                     }
                 }
                 .class("calendar-legend")
@@ -80,7 +87,11 @@ struct CalendarView: Component {
 
                     // Day rows
                     for day in days {
-                        CalendarDayRow(day: day, windows: windows)
+                        CalendarDayRow(
+                            day: day,
+                            windows: windows,
+                            solarByPattern: solarByPattern
+                        )
                     }
                 }
                 .class("calendar-grid")
@@ -147,12 +158,41 @@ private func assignPatternRows(
 struct CalendarDayRow: Component {
     var day: Date
     var windows: [CalendarWindow]
+    var solarByPattern: [String: PatternSolar] = [:]
 
     private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "EEE MMM d"
         return f
     }()
+
+    /// Build a CSS `background` value that shades the nighttime portion
+    /// of a day-track based on the given pattern's sunrise/sunset.
+    /// Returns nil if no solar data is available — the track will use
+    /// the default no-shade background.
+    private func nightShading(forPattern patternName: String) -> String? {
+        guard let solar = solarByPattern[patternName]?.byDay[day] else {
+            return nil
+        }
+        let dayDuration: TimeInterval = 86_400
+        let sunriseFrac = solar.sunrise.timeIntervalSince(day) / dayDuration
+        let sunsetFrac = solar.sunset.timeIntervalSince(day) / dayDuration
+        // Clamp in case of weird timezone/DST edge cases. At mid-latitudes
+        // this never triggers, but guards against crossing midnight.
+        let rise = max(0.0, min(1.0, sunriseFrac)) * 100
+        let set = max(0.0, min(1.0, sunsetFrac)) * 100
+        // rgba(30, 41, 82, 0.09) — the same cool navy-blue we picked by eye.
+        let tint = "rgba(30, 41, 82, 0.09)"
+        return """
+            linear-gradient(to right, \
+            \(tint) 0%, \
+            \(tint) \(String(format: "%.3f", rise))%, \
+            transparent \(String(format: "%.3f", rise))%, \
+            transparent \(String(format: "%.3f", set))%, \
+            \(tint) \(String(format: "%.3f", set))%, \
+            \(tint) 100%)
+            """
+    }
 
     /// Windows that overlap with this day (local time).
     private var dayWindows: [DayEntry] {
@@ -182,12 +222,26 @@ struct CalendarDayRow: Component {
         let entries = dayWindows
         let (rowForPattern, rowCount) = assignPatternRows(entries)
 
+        // Pick a pattern to anchor each track's night-shading. Uses the
+        // first pattern (by entry order within the day, which matches
+        // assignPatternRows' sort) assigned to that row. When several
+        // patterns share a row without overlapping, they're near enough
+        // that any of them gives essentially the right solar times.
+        var anchorByRow: [Int: String] = [:]
+        for entry in entries {
+            let row = rowForPattern[entry.window.patternName] ?? 0
+            if anchorByRow[row] == nil {
+                anchorByRow[row] = entry.window.patternName
+            }
+        }
+
         return Div {
             Div { Text(Self.dayFormatter.string(from: day)) }
                 .class("calendar-day-label")
 
             Div {
                 for rowIdx in 0..<rowCount {
+                    let shading = anchorByRow[rowIdx].flatMap(nightShading)
                     Div {
                         // Faint hour gridlines — repeated per track so the
                         // time axis reads correctly on each one.
@@ -227,6 +281,10 @@ struct CalendarDayRow: Component {
                         }
                     }
                     .class("calendar-day-track")
+                    .attribute(
+                        named: "style",
+                        value: shading.map { "background: \($0)" } ?? ""
+                    )
                 }
             }
             .class("calendar-day-tracks")

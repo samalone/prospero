@@ -12,6 +12,17 @@ struct CalendarWindow: Sendable {
     var window: MatchWindow
 }
 
+/// One pattern's per-day sunrise/sunset, keyed by local midnight.
+///
+/// The calendar shades each day's nighttime hours based on the first
+/// pattern assigned to that row's track; we precompute the lookup here
+/// so the view doesn't have to.
+struct PatternSolar: Sendable {
+    var patternName: String
+    /// Key: local midnight of the day. Value: (sunrise, sunset).
+    var byDay: [Date: (sunrise: Date, sunset: Date)]
+}
+
 func addCalendarRoutes(
     to router: RouterGroup<AuthedContext>,
     db: Database,
@@ -30,13 +41,19 @@ func addCalendarRoutes(
             .sort(\.$name)
             .all()
 
-        // Collect all match windows across all patterns, running the
-        // heavy per-pattern work concurrently.
+        struct PatternResult: Sendable {
+            var windows: [CalendarWindow]
+            var solar: PatternSolar
+        }
+
+        // Collect all match windows + per-pattern solar days concurrently.
         var allWindows: [CalendarWindow] = []
-        try await withThrowingTaskGroup(of: [CalendarWindow].self) { group in
+        var solarByPattern: [String: PatternSolar] = [:]
+
+        try await withThrowingTaskGroup(of: PatternResult.self) { group in
             for pattern in patterns {
                 group.addTask {
-                    let weather = try await meteoClient.fetchHourlyForecast(
+                    let forecast = try await meteoClient.fetchForecast(
                         latitude: pattern.latitude,
                         longitude: pattern.longitude
                     )
@@ -55,24 +72,35 @@ func addCalendarRoutes(
                     }
 
                     let conditions = assembler.assemble(
-                        weather: weather,
+                        weather: forecast.hourly,
                         tidePredictions: tidePredictions,
                         tideCurve: tideCurve
                     )
                     let windows = matcher.findWindows(
                         pattern: pattern, conditions: conditions
                     )
-                    return windows.map {
+                    let wrapped = windows.map {
                         CalendarWindow(
                             patternName: pattern.name,
                             hue: pattern.hue,
                             window: $0
                         )
                     }
+
+                    var byDay: [Date: (sunrise: Date, sunset: Date)] = [:]
+                    for d in forecast.solar {
+                        byDay[d.dayStart] = (d.sunrise, d.sunset)
+                    }
+
+                    return PatternResult(
+                        windows: wrapped,
+                        solar: PatternSolar(patternName: pattern.name, byDay: byDay)
+                    )
                 }
             }
-            for try await windows in group {
-                allWindows.append(contentsOf: windows)
+            for try await r in group {
+                allWindows.append(contentsOf: r.windows)
+                solarByPattern[r.solar.patternName] = r.solar
             }
         }
 
@@ -81,7 +109,8 @@ func addCalendarRoutes(
         return PageLayout(title: "Calendar", pageContext: PageContext(from: context)) {
             CalendarView(
                 windows: allWindows,
-                patterns: patterns
+                patterns: patterns,
+                solarByPattern: solarByPattern
             )
         }
     }
