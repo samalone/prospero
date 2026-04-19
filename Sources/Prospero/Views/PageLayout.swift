@@ -8,6 +8,8 @@ struct PageLayout: ResponseGenerator {
     var title: String
     var pageContext: PageContext = PageContext()
     var includeAuthScript: Bool = false
+    /// Opt in to the Leaflet assets + pattern-map.js (pattern editor only).
+    var includeMapScript: Bool = false
     @ComponentBuilder var content: () -> Component
 
     private func url(_ path: String) -> String { mountURL(path) }
@@ -19,8 +21,11 @@ struct PageLayout: ResponseGenerator {
                 .meta(.name("viewport"), .content("width=device-width, initial-scale=1")),
                 .title("\(title) — Prospero"),
                 .stylesheet(url("/styles.css")),
+                .if(includeMapScript, .stylesheet(url("/leaflet.css"))),
                 .script(.src(url("/htmx.min.js"))),
-                .if(includeAuthScript, .raw(WebAuthnScript.scriptTag))
+                .if(includeAuthScript, .raw(WebAuthnScript.scriptTag)),
+                .if(includeMapScript, .script(.src(url("/leaflet.js")))),
+                .if(includeMapScript, .script(.src(url("/pattern-map.js")), .attribute(named: "defer")))
             ),
             .body(
                 .header(
