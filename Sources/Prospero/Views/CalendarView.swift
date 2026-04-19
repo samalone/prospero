@@ -174,9 +174,23 @@ struct CalendarDayRow: Component {
         guard let solar = solarByPattern[patternName]?.byDay[day] else {
             return nil
         }
+        return gradient(sunrise: solar.sunrise, sunset: solar.sunset)
+    }
+
+    /// Fallback shading used when no pattern's match window lands on
+    /// this day (so there's no anchor to pick from `anchorByRow`). Uses
+    /// the alphabetically-first pattern's solar data so the band is
+    /// still drawn. Patterns are usually all in the same region, so
+    /// the choice barely matters.
+    private func fallbackNightShading() -> String? {
+        guard let name = solarByPattern.keys.sorted().first else { return nil }
+        return nightShading(forPattern: name)
+    }
+
+    private func gradient(sunrise: Date, sunset: Date) -> String {
         let dayDuration: TimeInterval = 86_400
-        let sunriseFrac = solar.sunrise.timeIntervalSince(day) / dayDuration
-        let sunsetFrac = solar.sunset.timeIntervalSince(day) / dayDuration
+        let sunriseFrac = sunrise.timeIntervalSince(day) / dayDuration
+        let sunsetFrac = sunset.timeIntervalSince(day) / dayDuration
         // Clamp in case of weird timezone/DST edge cases. At mid-latitudes
         // this never triggers, but guards against crossing midnight.
         let rise = max(0.0, min(1.0, sunriseFrac)) * 100
@@ -242,6 +256,7 @@ struct CalendarDayRow: Component {
             Div {
                 for rowIdx in 0..<rowCount {
                     let shading = anchorByRow[rowIdx].flatMap(nightShading)
+                        ?? fallbackNightShading()
                     Div {
                         // Faint hour gridlines — repeated per track so the
                         // time axis reads correctly on each one.

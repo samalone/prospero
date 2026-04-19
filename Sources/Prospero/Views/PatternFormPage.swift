@@ -200,6 +200,23 @@ struct PatternFormPage {
                     }
                     .type("submit")
                     .class("button primary")
+
+                    // Delete uses formaction to override the outer form's
+                    // action without needing a nested form. `formnovalidate`
+                    // lets delete work even if other fields are blank or
+                    // invalid. A confirm() catches accidental clicks.
+                    if isEditing, let id = pattern?.id?.uuidString {
+                        Element(name: "button") { Text("Delete Pattern") }
+                            .type("submit")
+                            .class("button danger")
+                            .attribute(named: "formaction",
+                                       value: mountURL("/patterns/\(id)/delete"))
+                            .attribute(named: "formnovalidate", value: "formnovalidate")
+                            .attribute(
+                                named: "onclick",
+                                value: "return confirm('Delete this pattern? This can\\'t be undone.')"
+                            )
+                    }
                 }
                 .class("form-actions")
             }

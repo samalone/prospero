@@ -317,6 +317,9 @@ legend {
 
 .form-actions {
     margin-top: 1.5rem;
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
 }
 
 button[type="submit"] {
