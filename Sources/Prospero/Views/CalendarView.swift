@@ -89,6 +89,61 @@ struct CalendarView: Component {
     }
 }
 
+/// One window's position within a day, precomputed once per render.
+typealias DayEntry = (window: CalendarWindow, startFrac: Double, endFrac: Double)
+
+/// Assign each pattern a stacking row within a day such that patterns
+/// whose windows overlap in time end up on different rows. All windows
+/// of a single pattern stay on the same row, so a pattern's color reads
+/// consistently across the day.
+///
+/// Greedy first-fit on patterns ordered by earliest window start —
+/// minimal rows for N patterns, deterministic placement between renders.
+///
+/// Returns: (rowForPattern, rowCount). `rowCount >= 1` even when empty
+/// so the day still reserves a visual row.
+private func assignPatternRows(
+    _ entries: [DayEntry]
+) -> (rowForPattern: [String: Int], rowCount: Int) {
+    let grouped = Dictionary(grouping: entries) { $0.window.patternName }
+    // Patterns sorted by their earliest window on this day (ties broken
+    // by name for determinism).
+    let orderedPatterns = grouped.keys.sorted { a, b in
+        let aStart = grouped[a]?.map(\.startFrac).min() ?? 0
+        let bStart = grouped[b]?.map(\.startFrac).min() ?? 0
+        if aStart != bStart { return aStart < bStart }
+        return a < b
+    }
+
+    // rows[i] = intervals already placed in row i.
+    var rows: [[(start: Double, end: Double)]] = []
+    var rowForPattern: [String: Int] = [:]
+
+    for name in orderedPatterns {
+        guard let intervals = grouped[name]?.map({ ($0.startFrac, $0.endFrac) }) else {
+            continue
+        }
+        var placed = false
+        for i in 0..<rows.count {
+            let overlaps = intervals.contains { a in
+                rows[i].contains { b in a.0 < b.end && b.start < a.1 }
+            }
+            if !overlaps {
+                rows[i].append(contentsOf: intervals.map { (start: $0.0, end: $0.1) })
+                rowForPattern[name] = i
+                placed = true
+                break
+            }
+        }
+        if !placed {
+            rows.append(intervals.map { (start: $0.0, end: $0.1) })
+            rowForPattern[name] = rows.count - 1
+        }
+    }
+
+    return (rowForPattern, max(rows.count, 1))
+}
+
 struct CalendarDayRow: Component {
     var day: Date
     var windows: [CalendarWindow]
@@ -100,7 +155,7 @@ struct CalendarDayRow: Component {
     }()
 
     /// Windows that overlap with this day (local time).
-    private var dayWindows: [(window: CalendarWindow, startFrac: Double, endFrac: Double)] {
+    private var dayWindows: [DayEntry] {
         let calendar = Calendar.current
         let dayStart = day
         guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else {
@@ -124,48 +179,57 @@ struct CalendarDayRow: Component {
     }
 
     var body: Component {
-        Div {
+        let entries = dayWindows
+        let (rowForPattern, rowCount) = assignPatternRows(entries)
+
+        return Div {
             Div { Text(Self.dayFormatter.string(from: day)) }
                 .class("calendar-day-label")
 
             Div {
-                // Faint hour gridlines
-                for hour in stride(from: 3, to: 24, by: 3) {
-                    Element(name: "span") {}
-                        .class("calendar-gridline")
-                        .attribute(named: "style",
-                                   value: "left: \(Double(hour) / 24.0 * 100)%")
-                }
-
-                // Pattern bars
-                for entry in dayWindows {
-                    let widthPct = (entry.endFrac - entry.startFrac) * 100
-                    let leftPct = entry.startFrac * 100
-                    let quality = entry.window.window.quality
-                    let color = HuePlacer.goalColor(hue: entry.window.hue, quality: quality)
-                    // Three-way card anchoring: left-align near the left
-                    // edge, right-align near the right edge, center in
-                    // between.
-                    let cardAnchor: String = entry.startFrac < 0.2
-                        ? "left"
-                        : (entry.startFrac >= 0.65 ? "right" : "center")
-                    Element(name: "div") {
-                        Element(name: "span") {
-                            Text(entry.window.patternName)
+                for rowIdx in 0..<rowCount {
+                    Div {
+                        // Faint hour gridlines — repeated per track so the
+                        // time axis reads correctly on each one.
+                        for hour in stride(from: 3, to: 24, by: 3) {
+                            Element(name: "span") {}
+                                .class("calendar-gridline")
+                                .attribute(named: "style",
+                                           value: "left: \(Double(hour) / 24.0 * 100)%")
                         }
-                        .class("calendar-bar-label")
 
-                        CalendarInfoCard(entry: entry, quality: quality)
+                        // Pattern bars assigned to this row.
+                        for entry in entries where rowForPattern[entry.window.patternName] == rowIdx {
+                            let widthPct = (entry.endFrac - entry.startFrac) * 100
+                            let leftPct = entry.startFrac * 100
+                            let quality = entry.window.window.quality
+                            let color = HuePlacer.goalColor(hue: entry.window.hue, quality: quality)
+                            // Three-way card anchoring: left-align near the left
+                            // edge, right-align near the right edge, center in
+                            // between.
+                            let cardAnchor: String = entry.startFrac < 0.2
+                                ? "left"
+                                : (entry.startFrac >= 0.65 ? "right" : "center")
+                            Element(name: "div") {
+                                Element(name: "span") {
+                                    Text(entry.window.patternName)
+                                }
+                                .class("calendar-bar-label")
+
+                                CalendarInfoCard(entry: entry, quality: quality)
+                            }
+                            .class("calendar-bar card-anchor-\(cardAnchor)")
+                            .attribute(named: "tabindex", value: "0")
+                            .attribute(
+                                named: "style",
+                                value: "left: \(leftPct)%; width: \(widthPct)%; background: \(color); --goal-color: \(color)"
+                            )
+                        }
                     }
-                    .class("calendar-bar card-anchor-\(cardAnchor)")
-                    .attribute(named: "tabindex", value: "0")
-                    .attribute(
-                        named: "style",
-                        value: "left: \(leftPct)%; width: \(widthPct)%; background: \(color); --goal-color: \(color)"
-                    )
+                    .class("calendar-day-track")
                 }
             }
-            .class("calendar-day-track")
+            .class("calendar-day-tracks")
         }
         .class("calendar-row")
     }

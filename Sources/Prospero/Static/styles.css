@@ -494,9 +494,25 @@ button[type="submit"] {
     transform: translateX(-50%);
 }
 
+/* Container that stacks per-pattern tracks inside a single day row.
+   When patterns don't overlap on a day they share one track; when any
+   pair overlaps, overlapping patterns get separate tracks so each
+   color stays visible. */
+.calendar-day-tracks {
+    display: flex;
+    flex-direction: column;
+}
+
 .calendar-day-track {
     position: relative;
     height: 2.25rem;
+}
+
+/* Stacked tracks within one day get a thin separator so the horizontal
+   time axis is still readable, but muted enough that a quiet day with
+   a single track still feels like one strip. */
+.calendar-day-track + .calendar-day-track {
+    border-top: 1px dashed var(--border);
 }
 
 .calendar-gridline {
