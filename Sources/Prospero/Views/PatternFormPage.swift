@@ -6,7 +6,11 @@ struct PatternFormPage {
     var isEditing: Bool { pattern != nil }
 
     var html: HTML {
-        PageLayout(title: isEditing ? "Edit Pattern" : "New Pattern", pageContext: pageContext) {
+        PageLayout(
+            title: isEditing ? "Edit Pattern" : "New Pattern",
+            pageContext: pageContext,
+            includeMapScript: true
+        ) {
             H1(isEditing ? "Edit Pattern" : "New Pattern")
 
             Element(name: "form") {
@@ -20,6 +24,19 @@ struct PatternFormPage {
 
                     FormField(label: "Location Name", name: "location_name", type: "text",
                               value: pattern?.locationName ?? "Edgewood Yacht Club")
+
+                    Paragraph("Click the map to pick a location, or a blue pin to select a NOAA tide station. The fields below update automatically.")
+                        .class("help-text")
+
+                    // Map container — pattern-map.js picks it up by id.
+                    // Initial lat/lng/station come from the form inputs
+                    // below so defaults and existing pattern values stay
+                    // consistent with what the map shows.
+                    Div {}
+                        .id("pattern-map")
+                        .class("pattern-map")
+                        .attribute(named: "data-stations-url",
+                                   value: mountURL("/patterns/tide-stations.json"))
 
                     Div {
                         FormField(label: "Latitude", name: "latitude", type: "number",

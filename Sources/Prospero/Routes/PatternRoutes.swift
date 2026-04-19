@@ -2,6 +2,7 @@ import FluentKit
 import Foundation
 import Hummingbird
 import HummingbirdAuth
+import NIOCore
 import Plot
 
 typealias AuthedContext = AuthenticatedContext<AppRequestContext>
@@ -11,6 +12,8 @@ func addPatternRoutes(
     db: Database,
     logger: Logging.Logger
 ) {
+    let tideStations = TideStationsService(logger: logger)
+
     // List current user's patterns
     router.get("/patterns") { request, context -> HTML in
         let userID = context.user.id!
@@ -26,6 +29,22 @@ func addPatternRoutes(
     router.get("/patterns/new") { request, context -> HTML in
         let pc = PageContext(from: context)
         return PatternFormPage(pageContext: pc).html
+    }
+
+    // NOAA tide station metadata for the map picker. Cached in memory,
+    // refreshed daily. Auth-gated since the rest of the pattern UI is.
+    router.get("/patterns/tide-stations.json") { _, _ -> Response in
+        let json = try await tideStations.stationsJSON()
+        return Response(
+            status: .ok,
+            headers: [
+                .contentType: "application/json",
+                // Clients can cache for an hour; server refreshes the
+                // upstream data every 24h anyway.
+                .cacheControl: "private, max-age=3600",
+            ],
+            body: .init(byteBuffer: ByteBuffer(bytes: json))
+        )
     }
 
     let hueService = PatternHueService(db: db)
