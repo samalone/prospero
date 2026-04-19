@@ -208,7 +208,7 @@ struct Serve: AsyncParsableCommand {
         // Profile (library routes + Prospero layout)
         installProfileRoutes(on: authed, db: db) { vm, context in
             PageLayout(title: "Profile", pageContext: PageContext(from: context)) {
-                ProfileView(viewModel: vm)
+                ProfileView(viewModel: vm, pathPrefix: context.mountPath)
             }
         }
 
@@ -223,14 +223,26 @@ struct Serve: AsyncParsableCommand {
                 invitations: authConfig.invitations ?? InvitationConfiguration()
             ),
             renderUsers: { users, context in
-                PageLayout(title: "Users", pageContext: PageContext(from: context)) {
-                    AdminUsersView(users: users, csrfToken: context.csrfToken)
+                // Pass the current admin's ID (or, during masquerade, the
+                // real admin's ID) so the view hides self-targeting actions.
+                let currentUserID = context.realUserID ?? context.user.id
+                return PageLayout(title: "Users", pageContext: PageContext(from: context)) {
+                    AdminUsersView(
+                        users: users,
+                        csrfToken: context.csrfToken,
+                        pathPrefix: context.mountPath,
+                        currentUserID: currentUserID
+                    )
                 }
             },
             renderInvitations: { invitations, baseURL, context in
                 PageLayout(title: "Invitations", pageContext: PageContext(from: context)) {
-                    AdminInvitationsView(invitations: invitations, baseURL: baseURL,
-                                         csrfToken: context.csrfToken)
+                    AdminInvitationsView(
+                        invitations: invitations,
+                        baseURL: baseURL,
+                        csrfToken: context.csrfToken,
+                        pathPrefix: context.mountPath
+                    )
                 }
             }
         )
