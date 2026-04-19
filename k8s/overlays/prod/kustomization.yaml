@@ -11,4 +11,4 @@ resources:
 # Production image tag. Bumped by scripts/release.sh from the CLI.
 images:
   - name: llamagraphics/prospero
-    newTag: "0.3.3"
+    newTag: "0.4.0"
