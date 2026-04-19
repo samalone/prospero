@@ -688,12 +688,34 @@ button[type="submit"] {
 .hue-slider::-webkit-slider-thumb {
     appearance: none;
     -webkit-appearance: none;
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
-    background: white;
+    background: #fff;
     border: 2px solid var(--text);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
     cursor: grab;
+    transition: transform 100ms ease-out;
+}
+
+.hue-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+}
+
+.hue-slider::-moz-range-thumb {
+    appearance: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--text);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    cursor: grab;
+    transition: transform 100ms ease-out;
+}
+
+.hue-slider::-moz-range-thumb:hover {
+    transform: scale(1.1);
 }
 
 .hue-swatch {
@@ -932,4 +954,184 @@ button[type="submit"] {
 
 .pattern-location-marker:active .pattern-location-pin {
     cursor: grabbing;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Range slider (range-slider.js)
+   ──────────────────────────────────────────────────────────────── */
+
+.range-slider {
+    margin: 0.25rem 0 0.75rem;
+    padding: 1rem 1.25rem 1.25rem;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;  /* let the JS handle drags, don't scroll */
+}
+
+.range-slider-label {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 0.75rem;
+    min-height: 1.25em;
+}
+
+.range-slider-track {
+    position: relative;
+    height: 12px;
+    background: var(--border);
+    border-radius: 6px;
+    /* Allow thumbs to extend past the track ends without clipping. */
+    margin: 0 1.25rem;
+}
+
+/* Muted-gradient layer beneath the fill. In the `--gradient` variants
+   we paint the same gradient here with low chroma so the out-of-range
+   portion of the track hints at the scale without competing with the
+   active fill. */
+.range-slider-track-bg {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    display: none;
+}
+
+.range-slider--gradient .range-slider-track {
+    background: transparent;   /* track-bg takes over */
+}
+
+.range-slider--gradient .range-slider-track-bg {
+    display: block;
+}
+
+.range-slider-fill {
+    position: absolute;
+    inset: 0;
+    background: var(--primary);
+    border-radius: inherit;
+    pointer-events: none;
+    /* clip-path is set inline by the JS so the fill's gradient aligns
+       exactly with the track-bg's gradient in screen coordinates. */
+}
+
+/* Hitbox: 44×44, generous for touch. Visible circle inside is 28px. */
+.range-slider-thumb {
+    position: absolute;
+    top: 50%;
+    width: 44px;
+    height: 44px;
+    margin: -22px 0 0 -22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    touch-action: none;
+}
+
+.range-slider-thumb::after {
+    content: "";
+    display: block;
+    width: 28px;
+    height: 28px;
+    background: #fff;
+    border: 2px solid var(--primary);
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    transition: transform 100ms ease-out;
+}
+
+.range-slider-thumb:focus-visible {
+    outline: none;
+}
+
+.range-slider-thumb:focus-visible::after {
+    box-shadow: 0 0 0 3px rgba(0, 100, 200, 0.35), 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.range-slider-thumb:hover::after {
+    transform: scale(1.1);
+}
+
+.range-slider-thumb-active {
+    cursor: grabbing;
+}
+
+.range-slider-thumb-active::after {
+    transform: scale(1.15);
+}
+
+/* ── Gradients ──────────────────────────────────────────────
+   OKLCH so equal perceptual steps look equal. Each scheme
+   supplies a vivid palette for the fill (active range) and
+   a desaturated version for the track-bg (out-of-range). */
+
+/* Temperature, 20°F → 100°F (NWS-inspired heat scale). */
+.range-slider--temperature .range-slider-fill {
+    background: linear-gradient(
+        to right in oklch,
+        oklch(55% 0.15 250) 0%,    /*  20°F cold blue */
+        oklch(72% 0.12 215) 25%,   /*  40°F cool blue-teal */
+        oklch(80% 0.13 165) 44%,   /*  55°F teal-green */
+        oklch(85% 0.15 130) 60%,   /*  68°F green */
+        oklch(88% 0.17  95) 69%,   /*  75°F warm yellow */
+        oklch(75% 0.17  55) 81%,   /*  85°F orange */
+        oklch(55% 0.22  30) 100%   /* 100°F hot red */
+    );
+}
+
+.range-slider--temperature .range-slider-track-bg {
+    background: linear-gradient(
+        to right in oklch,
+        oklch(90% 0.04 250) 0%,
+        oklch(92% 0.03 215) 25%,
+        oklch(93% 0.03 165) 44%,
+        oklch(93% 0.04 130) 60%,
+        oklch(94% 0.05  95) 69%,
+        oklch(92% 0.05  55) 81%,
+        oklch(88% 0.06  30) 100%
+    );
+}
+
+/* Wind speed, 0–40 kn (Beaufort-inspired). */
+.range-slider--wind .range-slider-fill {
+    background: linear-gradient(
+        to right in oklch,
+        oklch(96% 0.04 140)   0%,    /*  0 kn calm */
+        oklch(88% 0.10 140) 12.5%,   /*  5 kn light */
+        oklch(82% 0.14 140)  25%,    /* 10 kn gentle */
+        oklch(86% 0.16 110)  40%,    /* 16 kn moderate */
+        oklch(88% 0.18  95) 52.5%,   /* 21 kn fresh */
+        oklch(75% 0.17  55) 67.5%,   /* 27 kn strong */
+        oklch(65% 0.20  30) 82.5%,   /* 33 kn near gale */
+        oklch(50% 0.22  20) 100%     /* 40 kn gale */
+    );
+}
+
+.range-slider--wind .range-slider-track-bg {
+    background: linear-gradient(
+        to right in oklch,
+        oklch(96% 0.02 140)   0%,
+        oklch(93% 0.04 140) 12.5%,
+        oklch(91% 0.04 140)  25%,
+        oklch(93% 0.04 110)  40%,
+        oklch(94% 0.05  95) 52.5%,
+        oklch(92% 0.05  55) 67.5%,
+        oklch(90% 0.06  30) 82.5%,
+        oklch(85% 0.07  20) 100%
+    );
+}
+
+.range-slider-field {
+    /* Looser vertical rhythm than a stock form field — the slider
+       takes real estate. */
+    margin-bottom: 1.25rem;
+}
+
+.range-slider-title {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
 }

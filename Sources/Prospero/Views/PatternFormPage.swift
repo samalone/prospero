@@ -9,7 +9,8 @@ struct PatternFormPage {
         PageLayout(
             title: isEditing ? "Edit Pattern" : "New Pattern",
             pageContext: pageContext,
-            includeMapScript: true
+            includeMapScript: true,
+            includeRangeSliderScript: true
         ) {
             H1(isEditing ? "Edit Pattern" : "New Pattern")
 
@@ -52,48 +53,81 @@ struct PatternFormPage {
                               value: pattern?.tideStation ?? "8453767")
                 }
 
-                // Duration
-                FormField(label: "Required Duration (hours)", name: "duration_hours", type: "number",
-                          value: pattern.map { String($0.durationHours) } ?? "4",
-                          required: true, step: "0.5", min: "1", max: "24")
+                // Duration — single-value slider (always has a value).
+                RangeSliderField(
+                    title: "Required Duration",
+                    lowName: "duration_hours",
+                    lowValue: pattern.map { String($0.durationHours) } ?? "4",
+                    min: 0.5, max: 12, step: 0.5,
+                    unit: " hr", mode: "value",
+                    labelValue: "{value}{unit}"
+                )
 
-                // Weather Constraints
+                // Weather Constraints — dual/single-ended sliders with
+                // "no limit" endpoints. Leftmost thumb at min or rightmost
+                // at max submits empty (nil) to the backend.
                 Element(name: "fieldset") {
                     Element(name: "legend") { Text("Weather Constraints") }
-                    Paragraph("Leave blank for no constraint.").class("help-text")
+                    Paragraph("Drag a thumb to the track's end to remove that limit.")
+                        .class("help-text")
 
-                    Div {
-                        FormField(label: "Min Temp (°F)", name: "temperature_min", type: "number",
-                                  value: pattern?.temperatureMin.map { String(Int($0)) },
-                                  placeholder: "50")
-                        FormField(label: "Max Temp (°F)", name: "temperature_max", type: "number",
-                                  value: pattern?.temperatureMax.map { String(Int($0)) },
-                                  placeholder: "85")
-                    }
-                    .class("form-row")
+                    RangeSliderField(
+                        title: "Temperature",
+                        lowName: "temperature_min", highName: "temperature_max",
+                        lowValue: pattern?.temperatureMin.map { String(Int($0)) },
+                        highValue: pattern?.temperatureMax.map { String(Int($0)) },
+                        min: 20, max: 100, step: 1,
+                        unit: "°F",
+                        labelAny: "Any temperature",
+                        labelBelow: "Below {high}{unit}",
+                        labelAbove: "Above {low}{unit}",
+                        labelBetween: "{low}–{high}{unit}",
+                        colorScheme: "temperature"
+                    )
 
-                    FormField(label: "Max Humidity (%)", name: "humidity_max", type: "number",
-                              value: pattern?.humidityMax.map { String(Int($0)) },
-                              placeholder: "70", max: "100")
+                    RangeSliderField(
+                        title: "Humidity",
+                        highName: "humidity_max",
+                        highValue: pattern?.humidityMax.map { String(Int($0)) },
+                        min: 0, max: 100, step: 5,
+                        unit: "%",
+                        labelAny: "Any humidity",
+                        labelBelow: "Below {high}{unit}"
+                    )
 
-                    FormField(label: "Max Precipitation Probability (%)", name: "precip_probability_max",
-                              type: "number",
-                              value: pattern?.precipProbabilityMax.map { String(Int($0)) },
-                              placeholder: "20", max: "100")
+                    RangeSliderField(
+                        title: "Rain probability",
+                        highName: "precip_probability_max",
+                        highValue: pattern?.precipProbabilityMax.map { String(Int($0)) },
+                        min: 0, max: 100, step: 5,
+                        unit: "%",
+                        labelAny: "Any rain probability",
+                        labelBelow: "Below {high}{unit}"
+                    )
 
-                    Div {
-                        FormField(label: "Min Wind (kn)", name: "wind_speed_min", type: "number",
-                                  value: pattern?.windSpeedMin.map { String(Int($0)) },
-                                  placeholder: "5")
-                        FormField(label: "Max Wind (kn)", name: "wind_speed_max", type: "number",
-                                  value: pattern?.windSpeedMax.map { String(Int($0)) },
-                                  placeholder: "15")
-                    }
-                    .class("form-row")
+                    RangeSliderField(
+                        title: "Wind speed",
+                        lowName: "wind_speed_min", highName: "wind_speed_max",
+                        lowValue: pattern?.windSpeedMin.map { String(Int($0)) },
+                        highValue: pattern?.windSpeedMax.map { String(Int($0)) },
+                        min: 0, max: 40, step: 1,
+                        unit: " kn",
+                        labelAny: "Any wind",
+                        labelBelow: "Below {high}{unit}",
+                        labelAbove: "Above {low}{unit}",
+                        labelBetween: "{low}–{high}{unit}",
+                        colorScheme: "wind"
+                    )
 
-                    FormField(label: "Max Cloud Cover (%)", name: "cloud_cover_max", type: "number",
-                              value: pattern?.cloudCoverMax.map { String(Int($0)) },
-                              placeholder: "50", max: "100")
+                    RangeSliderField(
+                        title: "Cloud cover",
+                        highName: "cloud_cover_max",
+                        highValue: pattern?.cloudCoverMax.map { String(Int($0)) },
+                        min: 0, max: 100, step: 5,
+                        unit: "%",
+                        labelAny: "Any cloud cover",
+                        labelBelow: "Below {high}{unit}"
+                    )
                 }
 
                 // Scheduling
@@ -113,15 +147,19 @@ struct PatternFormPage {
                     }
                     .class("checkbox-field")
 
-                    Div {
-                        FormField(label: "Earliest Hour", name: "earliest_hour", type: "number",
-                                  value: pattern?.earliestHour.map { String($0) },
-                                  placeholder: "8", min: "0", max: "23")
-                        FormField(label: "Latest Hour", name: "latest_hour", type: "number",
-                                  value: pattern?.latestHour.map { String($0) },
-                                  placeholder: "18", min: "0", max: "23")
-                    }
-                    .class("form-row")
+                    // Time of day — dual slider, 12-hour clock.
+                    RangeSliderField(
+                        title: "Time of day",
+                        lowName: "earliest_hour", highName: "latest_hour",
+                        lowValue: pattern?.earliestHour.map { String($0) },
+                        highValue: pattern?.latestHour.map { String($0) },
+                        min: 0, max: 23, step: 1,
+                        format: "hour12",
+                        labelAny: "Any time of day",
+                        labelBelow: "Before {high}",
+                        labelAbove: "After {low}",
+                        labelBetween: "{low} – {high}"
+                    )
 
                     Div {
                         Element(name: "label") {
@@ -144,10 +182,18 @@ struct PatternFormPage {
                     }
                     .class("form-field")
 
-                    FormField(label: "Min Tide Height (ft MLLW)", name: "tide_height_min",
-                              type: "number",
-                              value: pattern?.tideHeightMin.map { String(format: "%.1f", $0) },
-                              placeholder: "e.g., 4.0", step: "0.1")
+                    RangeSliderField(
+                        title: "Tide height",
+                        lowName: "tide_height_min", highName: "tide_height_max",
+                        lowValue: pattern?.tideHeightMin.map { String(format: "%.1f", $0) },
+                        highValue: pattern?.tideHeightMax.map { String(format: "%.1f", $0) },
+                        min: 0, max: 8, step: 0.5,
+                        unit: " ft",
+                        labelAny: "Any tide height",
+                        labelBelow: "Below {high}{unit}",
+                        labelAbove: "Above {low}{unit}",
+                        labelBetween: "{low}–{high}{unit}"
+                    )
                 }
 
                 // Color picker. Leaving "Lock this color" unchecked lets
@@ -261,5 +307,90 @@ struct FormField: Component {
             .conditionalAttribute(max != nil, named: "max", value: max ?? "")
         }
         .class("form-field")
+    }
+}
+
+/// A slider-driven form field backed by one or two hidden inputs.
+///
+/// The `range-slider.js` component picks this up by class, reads the
+/// bounds / labels / input IDs from data attributes, and renders a
+/// touch-friendly track with one or two thumbs. The hidden inputs
+/// carry the values back to the server under their existing names;
+/// empty string still means "no limit" just like the old text inputs.
+///
+/// Modes:
+/// - `mode: "range"` (default) — endpoint positions mean "no limit."
+///   Combine `lowName` and/or `highName` for dual / single-ended use.
+/// - `mode: "value"` — always submits a value; used for duration etc.
+struct RangeSliderField: Component {
+    var title: String
+    var lowName: String? = nil
+    var highName: String? = nil
+    var lowValue: String? = nil
+    var highValue: String? = nil
+    var min: Double
+    var max: Double
+    var step: Double = 1
+    var unit: String = ""
+    var mode: String = "range"
+    /// Optional client-side format hint (e.g. `"hour12"` for AM/PM).
+    var format: String = ""
+    var labelAny: String = "Any"
+    var labelBelow: String = "Below {high}{unit}"
+    var labelAbove: String = "Above {low}{unit}"
+    var labelBetween: String = "{low}–{high}{unit}"
+    var labelValue: String = "{value}{unit}"
+    /// Semantic color scheme name (applied as `range-slider--<name>`
+    /// + `range-slider--gradient`). Empty = plain primary-blue fill.
+    var colorScheme: String = ""
+
+    /// Format a Double the way JS's parseFloat wants — no trailing `.0`.
+    private func fmt(_ d: Double) -> String {
+        if d == d.rounded() { return String(Int(d)) }
+        return String(d)
+    }
+
+    var body: Component {
+        // Pre-compute strings that would otherwise require ternaries or
+        // fallbacks inside the @ComponentBuilder closure.
+        let sliderClass = colorScheme.isEmpty
+            ? "range-slider"
+            : "range-slider range-slider--gradient range-slider--\(colorScheme)"
+
+        return Div {
+            Element(name: "label") { Text(title) }
+                .class("range-slider-title")
+
+            // Hidden inputs the slider writes into. The form submit
+            // sends these under their familiar names.
+            if let name = lowName {
+                Node.input(.name(name), .id(name), .value(lowValue ?? ""))
+                    .attribute(named: "type", value: "hidden")
+            }
+            if let name = highName {
+                Node.input(.name(name), .id(name), .value(highValue ?? ""))
+                    .attribute(named: "type", value: "hidden")
+            }
+
+            Div {}
+                .class(sliderClass)
+                .attribute(named: "data-min", value: fmt(min))
+                .attribute(named: "data-max", value: fmt(max))
+                .attribute(named: "data-step", value: fmt(step))
+                .attribute(named: "data-unit", value: unit)
+                .attribute(named: "data-mode", value: mode)
+                .conditionalAttribute(!format.isEmpty,
+                                      named: "data-format", value: format)
+                .conditionalAttribute(lowName != nil,
+                                      named: "data-low-input", value: lowName ?? "")
+                .conditionalAttribute(highName != nil,
+                                      named: "data-high-input", value: highName ?? "")
+                .attribute(named: "data-label-any", value: labelAny)
+                .attribute(named: "data-label-below", value: labelBelow)
+                .attribute(named: "data-label-above", value: labelAbove)
+                .attribute(named: "data-label-between", value: labelBetween)
+                .attribute(named: "data-label-value", value: labelValue)
+        }
+        .class("form-field range-slider-field")
     }
 }

@@ -48,6 +48,7 @@ func addMigrations(to fluent: Fluent) async {
     await fluent.migrations.add(CreateActivityPatterns())
     await fluent.migrations.add(AddTideHeightMin())
     await fluent.migrations.add(AddUserToPatterns())
+    await fluent.migrations.add(AddTideHeightMax())
     // Auth library tables
     await addAuthMigrations(to: fluent, userTable: ProsperoUser.schema)
 }
