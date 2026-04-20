@@ -195,8 +195,8 @@ struct CalendarDayRow: Component {
         // this never triggers, but guards against crossing midnight.
         let rise = max(0.0, min(1.0, sunriseFrac)) * 100
         let set = max(0.0, min(1.0, sunsetFrac)) * 100
-        // rgba(30, 41, 82, 0.09) — the same cool navy-blue we picked by eye.
-        let tint = "rgba(30, 41, 82, 0.09)"
+        // Cool navy-blue (rgb 30, 41, 82) picked by eye, at 9% alpha.
+        let tint = "oklch(0.29 0.08 269.96 / 0.09)"
         return """
             linear-gradient(to right, \
             \(tint) 0%, \

@@ -89,6 +89,7 @@ The quadratic ramp + fixed 85% lightness was tuned so black text reads on every 
 ## Conventions to preserve
 
 - **Swift 6 strict concurrency** — no `Sendable` warnings. Library models are `@unchecked Sendable` where Fluent requires it.
+- **All colors in OKLCH.** CSS (`Sources/Prospero/Static/styles.css`), inline styles generated from Swift, and any new color literals should use `oklch(...)` — not hex, `rgb()`, `rgba()`, or named colors. Alpha goes in the slash form: `oklch(L C H / A)`. The one exception is the vendored `leaflet.css` / `leaflet.js`, which we don't modify.
 - **Base64 normalization at storage boundaries.** `swift-webauthn` mixes base64 and base64url between registration and authentication. The library handles this; don't add new WebAuthn code without `normalizeToBase64URL()` at every field write.
 - **CSRF tokens on state-changing library forms.** PageLayout's masquerade form already wires this from `PageContext`. New POST endpoints that mutate user state should follow the same pattern.
 - **Cookie path scoping.** Prospero is designed to coexist with other apps on one domain behind a reverse proxy. `SessionConfiguration` uses the default path — don't harden it to `/` without thinking about collisions.
