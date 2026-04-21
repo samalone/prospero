@@ -1,5 +1,5 @@
 {
-  "originHash" : "e35cddc76a7d6dd93cc8c1ce68b05449ba35208241bd9c9bf74f3386cda8099f",
+  "originHash" : "e5e12d92df96d98bce63b7d4e43a11f37839c8fd8667ea14ad4a36f5d7b761be",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -60,8 +60,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/samalone/hummingbird-auth.git",
       "state" : {
-        "branch" : "csrf-middleware",
-        "revision" : "99bc6971730ff0b49feac691350621457f194768"
+        "branch" : "main",
+        "revision" : "04ca7dffc5f90004e937511f08d37415acf53017"
       }
     },
     {
