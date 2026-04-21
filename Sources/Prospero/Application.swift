@@ -206,11 +206,21 @@ struct Serve: AsyncParsableCommand {
             .redirect(to: "\(mountPath)/patterns")
         }
 
-        // Authenticated routes
+        // Authenticated routes. Meteo + tide clients are shared across
+        // routes so their caches are shared too — a calendar fetch and
+        // a forecast fetch for the same location hit the same cache.
+        let meteoClient = OpenMeteoClient()
+        let tideClient = TideClient()
         let authed = app.group(context: AuthenticatedContext<AppRequestContext>.self)
         addPatternRoutes(to: authed, db: db, logger: logger)
-        addForecastRoutes(to: authed, db: db, logger: logger)
-        addCalendarRoutes(to: authed, db: db, logger: logger)
+        addForecastRoutes(
+            to: authed, db: db, logger: logger,
+            meteoClient: meteoClient, tideClient: tideClient
+        )
+        addCalendarRoutes(
+            to: authed, db: db, logger: logger,
+            meteoClient: meteoClient, tideClient: tideClient
+        )
 
         // Profile (library routes + Prospero layout)
         installProfileRoutes(on: authed, db: db) { vm, context in

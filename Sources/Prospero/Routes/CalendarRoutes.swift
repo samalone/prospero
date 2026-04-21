@@ -26,10 +26,10 @@ struct PatternSolar: Sendable {
 func addCalendarRoutes(
     to router: RouterGroup<AuthedContext>,
     db: Database,
-    logger: Logger
+    logger: Logger,
+    meteoClient: OpenMeteoClient,
+    tideClient: TideClient
 ) {
-    let meteoClient = OpenMeteoClient()
-    let tideClient = TideClient()
     let assembler = ForecastAssembler()
     let matcher = PatternMatcher()
 

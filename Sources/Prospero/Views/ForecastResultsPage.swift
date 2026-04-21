@@ -1,5 +1,6 @@
 import Foundation
 import Plot
+import PlotHTMX
 
 struct ForecastResultsPage {
     var pattern: ActivityPattern
@@ -13,7 +14,13 @@ struct ForecastResultsPage {
     }
 
     var html: HTML {
-        PageLayout(title: "\(pattern.name) Forecast", pageContext: pageContext) {
+        // Poll URL preserves the sort param so auto-refresh doesn't
+        // reset a "by quality" view back to date order.
+        let selfURL = mountURL(
+            "/patterns/\(patternID)/forecast?sort=\(sortByQuality ? "quality" : "date")"
+        )
+
+        return PageLayout(title: "\(pattern.name) Forecast", pageContext: pageContext) {
             H1 {
                 Text("\(pattern.name)")
             }
@@ -27,35 +34,42 @@ struct ForecastResultsPage {
             }
             .class("help-text")
 
-            if windows.isEmpty {
-                Div {
-                    H3("No matching windows found")
-                    Paragraph("No upcoming time periods meet all your constraints. Try relaxing some of them.")
-                }
-                .class("empty-state")
-            } else {
-                Div {
-                    Paragraph("\(windows.count) matching \(windows.count == 1 ? "window" : "windows") found")
-                        .class("result-count")
+            Div {
+                if windows.isEmpty {
+                    Div {
+                        H3("No matching windows found")
+                        Paragraph("No upcoming time periods meet all your constraints. Try relaxing some of them.")
+                    }
+                    .class("empty-state")
+                } else {
+                    Div {
+                        Paragraph("\(windows.count) matching \(windows.count == 1 ? "window" : "windows") found")
+                            .class("result-count")
+
+                        Div {
+                            Element(name: "span") { Text("Sort by: ") }.class("sort-label")
+                            Link("Date", url: mountURL("/patterns/\(patternID)/forecast?sort=date"))
+                                .class(sortByQuality ? "sort-option" : "sort-option active")
+                            Link("Quality", url: mountURL("/patterns/\(patternID)/forecast?sort=quality"))
+                                .class(sortByQuality ? "sort-option active" : "sort-option")
+                        }
+                        .class("sort-controls")
+                    }
+                    .class("results-header")
 
                     Div {
-                        Element(name: "span") { Text("Sort by: ") }.class("sort-label")
-                        Link("Date", url: mountURL("/patterns/\(patternID)/forecast?sort=date"))
-                            .class(sortByQuality ? "sort-option" : "sort-option active")
-                        Link("Quality", url: mountURL("/patterns/\(patternID)/forecast?sort=quality"))
-                            .class(sortByQuality ? "sort-option active" : "sort-option")
+                        for window in windows {
+                            WindowCard(window: window, pattern: pattern, hasTideData: hasTideData)
+                        }
                     }
-                    .class("sort-controls")
+                    .class("window-list")
                 }
-                .class("results-header")
-
-                Div {
-                    for window in windows {
-                        WindowCard(window: window, pattern: pattern, hasTideData: hasTideData)
-                    }
-                }
-                .class("window-list")
             }
+            .id("forecast-content")
+            .hxGet(selfURL)
+            .hxTrigger("every 1800s")
+            .hxSwap(.outerHTML)
+            .hxSelect("#forecast-content")
 
             Div {
                 Link("Back to Patterns", url: mountURL("/patterns")).class("button secondary")

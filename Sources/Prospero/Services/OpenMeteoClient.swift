@@ -34,9 +34,28 @@ struct Forecast: Sendable {
 }
 
 /// Client for the Open-Meteo Forecast API.
+///
+/// Cached entries expire at the next hour boundary plus a small skew
+/// (Open-Meteo publishes new forecast data roughly once per hour; the
+/// exact minute varies, so we give it five minutes of slack). This means
+/// we never hit the upstream API more than once per hour per location —
+/// even if many users ask at different minutes of the same hour — and
+/// callers still get data no more than about an hour stale.
 actor OpenMeteoClient {
-    private var cache: (key: String, data: Forecast, fetchedAt: Date)?
-    private let cacheTTL: TimeInterval = 30 * 60 // 30 minutes
+    private struct CacheEntry {
+        var data: Forecast
+        var expiresAt: Date
+    }
+
+    private var cache: [String: CacheEntry] = [:]
+
+    private let publishSkew: TimeInterval = 5 * 60
+
+    private static let utcCalendar: Calendar = {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+        return cal
+    }()
 
     /// Fetch hourly forecast + daily sunrise/sunset for the next 14 days.
     func fetchForecast(
@@ -44,14 +63,24 @@ actor OpenMeteoClient {
         longitude: Double
     ) async throws -> Forecast {
         let cacheKey = "\(latitude),\(longitude)"
-        if let cache, cache.key == cacheKey,
-           Date().timeIntervalSince(cache.fetchedAt) < cacheTTL {
-            return cache.data
+        let now = Date()
+        if let entry = cache[cacheKey], entry.expiresAt > now {
+            return entry.data
         }
 
         let forecast = try await fetchFromAPI(latitude: latitude, longitude: longitude)
-        self.cache = (key: cacheKey, data: forecast, fetchedAt: Date())
+        cache[cacheKey] = CacheEntry(
+            data: forecast,
+            expiresAt: nextExpiry(after: now)
+        )
         return forecast
+    }
+
+    private func nextExpiry(after now: Date) -> Date {
+        let cal = Self.utcCalendar
+        let comps = cal.dateComponents([.year, .month, .day, .hour], from: now)
+        let topOfThisHour = cal.date(from: comps) ?? now
+        return topOfThisHour.addingTimeInterval(3600 + publishSkew)
     }
 
     /// Backwards-compatible shim — hourly conditions only.

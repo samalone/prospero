@@ -95,6 +95,11 @@ struct CalendarView: Component {
                     }
                 }
                 .class("calendar-grid")
+                .id("calendar-content")
+                .hxGet(mountURL("/calendar"))
+                .hxTrigger("every 1800s")
+                .hxSwap(.outerHTML)
+                .hxSelect("#calendar-content")
             }
         }
     }
