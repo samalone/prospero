@@ -49,6 +49,12 @@ actor OpenMeteoClient {
 
     private var cache: [String: CacheEntry] = [:]
 
+    // Dedup concurrent cold-cache callers so N parallel patterns at the
+    // same location collapse into one upstream request — CalendarRoutes
+    // fetches per-pattern in a TaskGroup, so the check-then-fetch gap
+    // would otherwise let several requests slip through.
+    private var inflight: [String: Task<Forecast, Error>] = [:]
+
     private let publishSkew: TimeInterval = 5 * 60
 
     private static let utcCalendar: Calendar = {
@@ -67,8 +73,17 @@ actor OpenMeteoClient {
         if let entry = cache[cacheKey], entry.expiresAt > now {
             return entry.data
         }
+        if let existing = inflight[cacheKey] {
+            return try await existing.value
+        }
 
-        let forecast = try await fetchFromAPI(latitude: latitude, longitude: longitude)
+        let task = Task {
+            try await fetchFromAPI(latitude: latitude, longitude: longitude)
+        }
+        inflight[cacheKey] = task
+        defer { inflight[cacheKey] = nil }
+
+        let forecast = try await task.value
         cache[cacheKey] = CacheEntry(
             data: forecast,
             expiresAt: nextExpiry(after: now)

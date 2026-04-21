@@ -53,6 +53,12 @@ actor TideClient {
 
     private var hiloCache: [String: HiLoEntry] = [:]
     private var curveCache: [String: CurveEntry] = [:]
+
+    // Dedup concurrent cold-cache callers so N parallel patterns at the
+    // same station collapse into one upstream request per endpoint.
+    private var hiloInflight: [String: Task<[TidePrediction], Error>] = [:]
+    private var curveInflight: [String: Task<[TideCurvePoint], Error>] = [:]
+
     private let cacheTTL: TimeInterval = 6 * 60 * 60 // 6 hours
 
     /// Fetch high/low tide predictions for the next 14 days.
@@ -61,8 +67,15 @@ actor TideClient {
         if let entry = hiloCache[station], entry.expiresAt > now {
             return entry.predictions
         }
+        if let existing = hiloInflight[station] {
+            return try await existing.value
+        }
 
-        let predictions = try await fetchHiLoFromAPI(station: station)
+        let task = Task { try await fetchHiLoFromAPI(station: station) }
+        hiloInflight[station] = task
+        defer { hiloInflight[station] = nil }
+
+        let predictions = try await task.value
         hiloCache[station] = HiLoEntry(
             predictions: predictions,
             expiresAt: now.addingTimeInterval(cacheTTL)
@@ -78,8 +91,15 @@ actor TideClient {
         if let entry = curveCache[station], entry.expiresAt > now {
             return entry.points
         }
+        if let existing = curveInflight[station] {
+            return try await existing.value
+        }
 
-        let points = try await fetchCurveFromAPI(station: station)
+        let task = Task { try await fetchCurveFromAPI(station: station) }
+        curveInflight[station] = task
+        defer { curveInflight[station] = nil }
+
+        let points = try await task.value
         curveCache[station] = CurveEntry(
             points: points,
             expiresAt: now.addingTimeInterval(cacheTTL)
