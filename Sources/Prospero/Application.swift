@@ -187,15 +187,48 @@ struct Serve: AsyncParsableCommand {
             }
         }
 
-        // Invitation/registration page
-        app.get("/invite/:token") { request, context -> PageLayout in
+        // Invitation/registration page.
+        //
+        // If the visitor already has a valid session, skip the registration
+        // form and send them to the home page — otherwise a returning user
+        // who re-clicks their emailed invitation link gets bounced to a
+        // sign-up page that rejects them as "already registered".
+        //
+        // If the invitation has been consumed but the visitor is not signed
+        // in, send them to the login page: their account exists, they just
+        // need to sign in with the passkey they registered.
+        let invitationService = InvitationService(
+            db: db, logger: logger,
+            config: authConfig.invitations ?? InvitationConfiguration()
+        )
+        app.get("/invite/:token") { request, context -> Response in
             let token = context.parameters.get("token") ?? ""
-            return PageLayout(title: "Create Account", includeAuthScript: true) {
+
+            if context.user != nil {
+                return .redirect(to: "\(mountPath)/patterns", type: .found)
+            }
+
+            let (prefillEmail, errorMessage): (String?, String?)
+            do {
+                let invitation = try await invitationService.validateToken(token)
+                prefillEmail = invitation.email
+                errorMessage = nil
+            } catch InvitationError.alreadyConsumed {
+                return .redirect(to: authConfig.loginPagePath, type: .found)
+            } catch is InvitationError {
+                prefillEmail = nil
+                errorMessage = "This invitation link is invalid or has expired."
+            }
+
+            let page = PageLayout(title: "Create Account", includeAuthScript: true) {
                 RegistrationView(
                     invitationToken: token,
+                    email: prefillEmail,
+                    errorMessage: errorMessage,
                     pathPrefix: authAPIPath
                 )
             }
+            return try page.response(from: request, context: context)
         }
 
         // Auth API routes (begin-login, finish-login, etc.)
