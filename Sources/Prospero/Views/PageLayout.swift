@@ -89,8 +89,7 @@ struct PageLayout: ResponseGenerator {
                                                 .form(
                                                     .method(.post),
                                                     .action(url("/auth/logout")),
-                                                    .input(.type(.hidden), .name("csrf_token"),
-                                                           .value(pageContext.csrfToken ?? "")),
+                                                    .component(CSRFField(pageContext.csrfToken)),
                                                     .element(named: "button",
                                                         nodes: [
                                                             .attribute(named: "type", value: "submit"),
