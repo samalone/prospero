@@ -39,7 +39,7 @@ func mountURL(_ path: String) -> String {
     return prosperoMountPath + path
 }
 
-struct AppRequestContext: AuthRequestContextProtocol, RequestContext {
+struct AppRequestContext: CSRFProtectedContext, RequestContext {
     typealias User = ProsperoUser
 
     var coreContext: CoreRequestContextStorage
@@ -48,6 +48,8 @@ struct AppRequestContext: AuthRequestContextProtocol, RequestContext {
     var masqueradingAs: String?
     var realUserID: UUID?
     var csrfToken: String?
+    var csrfValidated: Bool = false
+    var csrfSkipped: Bool = false
 
     /// Mount path from `prosperoMountPath`. Stable for the process lifetime.
     var mountPath: String { prosperoMountPath }
