@@ -34,20 +34,52 @@ struct TideCurvePoint: Sendable {
     var height: Double  // feet (MLLW datum)
 }
 
+/// Client for NOAA CO-OPS harmonic tide predictions.
+///
+/// Harmonic predictions are deterministic output from fixed tide
+/// constants — the only reason to refetch is that the rolling 14-day
+/// window has advanced. A 6-hour TTL keeps the request volume low while
+/// guaranteeing the trailing edge of the window is always at least a
+/// week ahead of "now."
 actor TideClient {
-    private var hiloCache: (key: String, predictions: [TidePrediction], fetchedAt: Date)?
-    private var curveCache: (key: String, points: [TideCurvePoint], fetchedAt: Date)?
-    private let cacheTTL: TimeInterval = 60 * 60 // 1 hour
+    private struct HiLoEntry {
+        var predictions: [TidePrediction]
+        var expiresAt: Date
+    }
+    private struct CurveEntry {
+        var points: [TideCurvePoint]
+        var expiresAt: Date
+    }
+
+    private var hiloCache: [String: HiLoEntry] = [:]
+    private var curveCache: [String: CurveEntry] = [:]
+
+    // Dedup concurrent cold-cache callers so N parallel patterns at the
+    // same station collapse into one upstream request per endpoint.
+    private var hiloInflight: [String: Task<[TidePrediction], Error>] = [:]
+    private var curveInflight: [String: Task<[TideCurvePoint], Error>] = [:]
+
+    private let cacheTTL: TimeInterval = 6 * 60 * 60 // 6 hours
 
     /// Fetch high/low tide predictions for the next 14 days.
     func fetchPredictions(station: String) async throws -> [TidePrediction] {
-        if let hiloCache, hiloCache.key == station,
-           Date().timeIntervalSince(hiloCache.fetchedAt) < cacheTTL {
-            return hiloCache.predictions
+        let now = Date()
+        if let entry = hiloCache[station], entry.expiresAt > now {
+            return entry.predictions
+        }
+        if let existing = hiloInflight[station] {
+            return try await existing.value
         }
 
-        let predictions = try await fetchHiLoFromAPI(station: station)
-        self.hiloCache = (key: station, predictions: predictions, fetchedAt: Date())
+        let task = Task { try await fetchHiLoFromAPI(station: station) }
+        hiloInflight[station] = task
+        defer { hiloInflight[station] = nil }
+
+        let predictions = try await task.value
+        hiloCache[station] = HiLoEntry(
+            predictions: predictions,
+            expiresAt: now.addingTimeInterval(cacheTTL)
+        )
         return predictions
     }
 
@@ -55,13 +87,23 @@ actor TideClient {
     /// This uses NOAA's harmonic model output — the same data used to draw
     /// tide graphs in eyc-weather.
     func fetchTideCurve(station: String) async throws -> [TideCurvePoint] {
-        if let curveCache, curveCache.key == station,
-           Date().timeIntervalSince(curveCache.fetchedAt) < cacheTTL {
-            return curveCache.points
+        let now = Date()
+        if let entry = curveCache[station], entry.expiresAt > now {
+            return entry.points
+        }
+        if let existing = curveInflight[station] {
+            return try await existing.value
         }
 
-        let points = try await fetchCurveFromAPI(station: station)
-        self.curveCache = (key: station, points: points, fetchedAt: Date())
+        let task = Task { try await fetchCurveFromAPI(station: station) }
+        curveInflight[station] = task
+        defer { curveInflight[station] = nil }
+
+        let points = try await task.value
+        curveCache[station] = CurveEntry(
+            points: points,
+            expiresAt: now.addingTimeInterval(cacheTTL)
+        )
         return points
     }
 
