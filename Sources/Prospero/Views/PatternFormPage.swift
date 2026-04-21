@@ -1,3 +1,4 @@
+import HummingbirdAuthViews
 import Plot
 
 struct PatternFormPage {
@@ -15,6 +16,11 @@ struct PatternFormPage {
             H1(isEditing ? "Edit Pattern" : "New Pattern")
 
             Element(name: "form") {
+                // CSRF token shared by both the primary submit (create or
+                // update) and the "Delete Pattern" button's formaction
+                // override — all three POSTs run through CSRFMiddleware.
+                CSRFField(pageContext.csrfToken)
+
                 // Name
                 FormField(label: "Activity Name", name: "name", type: "text",
                           value: pattern?.name, placeholder: "e.g., Fiberglassing", required: true)
