@@ -261,6 +261,25 @@ struct Serve: AsyncParsableCommand {
                         pathPrefix: context.mountPath
                     )
                 }
+            },
+            renderUserRow: { user, context in
+                AdminUserRow(
+                    user: user,
+                    csrfToken: context.csrfToken,
+                    pathPrefix: context.mountPath,
+                    currentUserID: context.realUserID ?? context.user.id,
+                    onlyOneAdmin: false
+                )
+                .renderFragment()
+            },
+            renderInvitationList: { invitations, baseURL, context in
+                AdminInvitationList(
+                    invitations: invitations,
+                    baseURL: baseURL,
+                    csrfToken: context.csrfToken,
+                    pathPrefix: context.mountPath
+                )
+                .renderFragment()
             }
         )
 

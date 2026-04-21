@@ -11,6 +11,14 @@ extension HTML: @retroactive ResponseGenerator {
     }
 }
 
+extension Component {
+    /// Render this component as an HTML fragment response. Suitable for HTMX
+    /// partial swaps that shouldn't include a full document shell.
+    func renderFragment() -> Response {
+        htmlResponse(render())
+    }
+}
+
 /// Build an HTML response from a pre-rendered string.
 func htmlResponse(_ html: String, status: HTTPResponse.Status = .ok) -> Response {
     Response(
