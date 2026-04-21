@@ -121,7 +121,7 @@ struct PageLayout: ResponseGenerator {
                     .component(content())
                 ),
                 .footer(
-                    .p(.text("Prospero — Reverse Weather Forecaster"))
+                    .p(.text("Prospero \(prosperoVersion) — Reverse Weather Forecaster"))
                 )
             )
         )

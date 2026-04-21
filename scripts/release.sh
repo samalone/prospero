@@ -78,7 +78,7 @@ kubectl --context pc rollout restart deployment/prospero
 kubectl --context pc rollout status deployment/prospero
 
 echo "==> Committing $VERSION..."
-git add "$KUSTOMIZATION"
+git add "$KUSTOMIZATION" Sources/Prospero/Version.swift
 git commit -m "Version $VERSION"
 git tag -a "$VERSION" -m "Release $VERSION"
 git push origin main

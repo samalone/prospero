@@ -42,4 +42,10 @@ NEW="$MAJOR.$MINOR.$PATCH"
 yq -i "(.images[] | select(.name == \"llamagraphics/prospero\") | .newTag) = \"$NEW\"" \
     "$KUSTOMIZATION"
 
+# Swift-side constant displayed in the app footer. Kept in sync with
+# the kustomization image tag so the running app self-reports what's
+# actually deployed.
+VERSION_SWIFT=Sources/Prospero/Version.swift
+sed -i '' -E "s/(let prosperoVersion = )\"[0-9]+\.[0-9]+\.[0-9]+\"/\1\"$NEW\"/" "$VERSION_SWIFT"
+
 echo "$CURRENT -> $NEW"
