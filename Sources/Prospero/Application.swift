@@ -138,6 +138,11 @@ struct Serve: AsyncParsableCommand {
         router.add(middleware: SessionMiddleware<AppRequestContext>(
             db: db, config: authConfig.session
         ))
+        // CSRF must run after SessionMiddleware (which populates
+        // context.csrfToken) and before any state-changing route handler.
+        // Safe methods, bearer-auth, and unauthenticated requests are all
+        // skipped by the middleware itself.
+        router.add(middleware: CSRFMiddleware<AppRequestContext>())
         router.add(middleware: AuthRedirectMiddleware<AppRequestContext>(
             loginPath: authConfig.loginPagePath
         ))
