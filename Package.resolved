@@ -61,7 +61,7 @@
       "location" : "https://github.com/samalone/hummingbird-auth.git",
       "state" : {
         "branch" : "csrf-middleware",
-        "revision" : "d94efb90eeec4b2709d5e44db44ef91e72351f4c"
+        "revision" : "99bc6971730ff0b49feac691350621457f194768"
       }
     },
     {

@@ -48,7 +48,6 @@ struct AppRequestContext: CSRFProtectedContext, RequestContext {
     var masqueradingAs: String?
     var realUserID: UUID?
     var csrfToken: String?
-    var csrfValidated: Bool = false
     var csrfSkipped: Bool = false
 
     /// Mount path from `prosperoMountPath`. Stable for the process lifetime.
