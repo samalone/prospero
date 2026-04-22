@@ -85,14 +85,14 @@ if [[ ! -f "$DB_PATH" ]] || ! sqlite3 "$DB_PATH" \
     2>/dev/null | grep -q 1
 then
     echo "==> Initializing dev database (running migrations)…"
-    swift run prospero migrate
+    swift run Prospero migrate
 fi
 
 USER_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM users")
 if [[ "$USER_COUNT" -eq 0 ]]; then
     echo ""
     echo "==> No registered users yet. Generating invitation…"
-    swift run prospero invite \
+    swift run Prospero invite \
         --email samalone@llamagraphics.com \
         --base-url "$DEV_URL" \
         --expires-days 30
@@ -101,4 +101,4 @@ fi
 
 echo "==> Starting prospero serve (auto-migrate)…"
 echo "    Press Ctrl-C to stop."
-exec swift run prospero serve --auto-migrate --hostname 127.0.0.1 --port 8080
+exec swift run Prospero serve --auto-migrate --hostname 127.0.0.1 --port 8080
