@@ -18,20 +18,29 @@ struct PageLayout: ResponseGenerator {
 
     private func url(_ path: String) -> String { mountURL(path) }
 
+    /// Append a cache-busting query string to a static asset path.
+    /// Bumped at release time with `prosperoVersion`, so new releases
+    /// force browsers to refetch even when the asset URL is otherwise
+    /// unchanged and cached for a long time. Dev builds share a single
+    /// "0.0.0-dev" version so Cmd+Shift+R still works there.
+    private func asset(_ path: String) -> String {
+        "\(mountURL(path))?v=\(prosperoVersion)"
+    }
+
     var html: HTML {
         HTML(
             .head(
                 .meta(.charset(.utf8)),
                 .meta(.name("viewport"), .content("width=device-width, initial-scale=1")),
                 .title("\(title) — Prospero"),
-                .stylesheet(url("/styles.css")),
-                .if(includeMapScript, .stylesheet(url("/leaflet.css"))),
-                .script(.src(url("/htmx.min.js"))),
+                .stylesheet(asset("/styles.css")),
+                .if(includeMapScript, .stylesheet(asset("/leaflet.css"))),
+                .script(.src(asset("/htmx.min.js"))),
                 .if(includeAuthScript, .raw(WebAuthnScript.scriptTag)),
-                .if(includeMapScript, .script(.src(url("/leaflet.js")))),
-                .if(includeMapScript, .script(.src(url("/pattern-map.js")), .attribute(named: "defer"))),
-                .if(includeRangeSliderScript, .script(.src(url("/range-slider.js")), .attribute(named: "defer"))),
-                .if(includeCalendarScript, .script(.src(url("/calendar.js")), .attribute(named: "defer")))
+                .if(includeMapScript, .script(.src(asset("/leaflet.js")))),
+                .if(includeMapScript, .script(.src(asset("/pattern-map.js")), .attribute(named: "defer"))),
+                .if(includeRangeSliderScript, .script(.src(asset("/range-slider.js")), .attribute(named: "defer"))),
+                .if(includeCalendarScript, .script(.src(asset("/calendar.js")), .attribute(named: "defer")))
             ),
             .body(
                 .header(
