@@ -126,7 +126,13 @@ struct Serve: AsyncParsableCommand {
             invitePagePath: "\(mountPath)/invite",
             callbacks: AuthCallbacks(
                 postLoginRedirect: { _ in "\(mountPath)/patterns" },
-                postLogoutRedirect: "\(mountPath)/login"
+                postLogoutRedirect: "\(mountPath)/login",
+                onUserRegistered: { user, _ in
+                    guard let userID = user.id else { return }
+                    try await StarterPatternService.installSailing(
+                        userID: userID, db: db
+                    )
+                }
             )
         )
 
