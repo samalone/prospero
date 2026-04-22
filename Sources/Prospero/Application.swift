@@ -126,7 +126,23 @@ struct Serve: AsyncParsableCommand {
             invitePagePath: "\(mountPath)/invite",
             callbacks: AuthCallbacks(
                 postLoginRedirect: { _ in "\(mountPath)/patterns" },
-                postLogoutRedirect: "\(mountPath)/login"
+                postLogoutRedirect: "\(mountPath)/login",
+                onUserRegistered: { user, _ in
+                    guard let userID = user.id else { return }
+                    // Best-effort — an empty pattern list is a far better
+                    // failure mode than a 500 after the user, passkey, and
+                    // invitation are already persisted (the consumed
+                    // invitation can't be reused to retry).
+                    do {
+                        try await StarterPatternService.installSailing(
+                            userID: userID, db: db
+                        )
+                    } catch {
+                        logger.error(
+                            "Failed to install starter pattern for user \(userID): \(error)"
+                        )
+                    }
+                }
             )
         )
 
