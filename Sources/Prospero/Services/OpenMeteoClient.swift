@@ -157,10 +157,19 @@ actor OpenMeteoClient {
         }
 
         let decoded = try JSONDecoder().decode(OpenMeteoResponse.self, from: data)
+        // Fail loudly if the reported zone is unparseable. `.current`
+        // would silently re-introduce the server-timezone bug this
+        // refactor fixes; UTC would quietly misinterpret hour-of-day
+        // for any pattern outside UTC. An unparseable IANA identifier
+        // from a successful Open-Meteo response is unexpected enough
+        // that surfacing it is the right call.
+        guard let tz = TimeZone(identifier: decoded.timezone) else {
+            throw OpenMeteoError.invalidTimezone(decoded.timezone)
+        }
         return Forecast(
             hourly: buildHourly(from: decoded),
             solar: buildSolar(from: decoded),
-            timezone: TimeZone(identifier: decoded.timezone) ?? .current
+            timezone: tz
         )
     }
 
@@ -249,6 +258,7 @@ actor OpenMeteoClient {
 
 enum OpenMeteoError: Error {
     case httpError(Int)
+    case invalidTimezone(String)
 }
 
 // MARK: - API Response Types
