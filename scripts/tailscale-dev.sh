@@ -1,0 +1,78 @@
+#!/bin/bash
+# Start a Tailscale-exposed dev instance of Prospero for mobile testing.
+#
+# Why this exists: passkeys require HTTPS and a stable hostname, so we
+# can't just hit the dev server over LAN from the phone. Tailscale Serve
+# publishes this Mac's localhost:8080 over a real Let's Encrypt-backed
+# https://<machine>.<tailnet>.ts.net URL that our phone (on the same
+# tailnet) can reach. No k8s, no public exposure, no build-and-push loop.
+#
+# Prerequisites (one-time):
+#   1. Install Tailscale CLI on this Mac and sign in.
+#   2. In the Tailscale admin console (https://login.tailscale.com/admin/dns):
+#        - Enable MagicDNS.
+#        - Enable HTTPS Certificates.
+#   3. Install Tailscale on your phone and sign in to the same tailnet.
+#
+# Use:
+#   scripts/tailscale-dev.sh              # starts server + serves over tailnet
+#   tailscale serve reset                 # tears down the proxy when done
+#
+# To seed a registration invitation (run in another terminal):
+#   DATA_DIR=~/.prospero-dev \
+#     swift run prospero invite \
+#       --email you@example.com \
+#       --base-url "https://$(tailscale status --json | jq -r '.Self.DNSName' | sed 's/\.$//')" \
+#       --expires-days 30
+#
+# The WebAuthn RP ID is bound to the tailnet hostname, so the passkey
+# you register here is separate from the one on propercourse.app —
+# intentional. It'll stay valid across branches since your tailnet
+# hostname never changes.
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+if ! command -v tailscale >/dev/null 2>&1; then
+    echo "Error: tailscale CLI not found. Install Tailscale and sign in." >&2
+    exit 1
+fi
+if ! command -v jq >/dev/null 2>&1; then
+    echo "Error: jq not found. brew install jq." >&2
+    exit 1
+fi
+
+FQDN=$(tailscale status --json | jq -r '.Self.DNSName' | sed 's/\.$//')
+if [[ -z "$FQDN" || "$FQDN" == "null" ]]; then
+    echo "Error: could not determine Tailscale FQDN. Is tailscaled running?" >&2
+    echo "Run 'tailscale status' to diagnose." >&2
+    exit 1
+fi
+
+DEV_URL="https://$FQDN"
+DATA_DIR="${DATA_DIR:-$HOME/.prospero-dev}"
+mkdir -p "$DATA_DIR"
+
+echo "==> Dev URL:   $DEV_URL"
+echo "==> Data dir:  $DATA_DIR"
+
+# Replace any prior serve config with a single HTTPS → localhost forward.
+echo "==> Configuring Tailscale Serve…"
+tailscale serve reset >/dev/null 2>&1 || true
+tailscale serve --bg --https=443 http://127.0.0.1:8080
+
+echo ""
+echo "==> Tailscale Serve is forwarding $DEV_URL → http://127.0.0.1:8080"
+echo "    Stop it later with: tailscale serve reset"
+echo ""
+
+# RP_ID is the bare hostname; RP_ORIGIN is the full https URL. Both
+# must match what the browser sees or WebAuthn ceremony fails.
+export WEBAUTHN_RP_ID="$FQDN"
+export WEBAUTHN_RP_ORIGIN="$DEV_URL"
+export DATA_DIR
+
+echo "==> Starting prospero serve (auto-migrate)…"
+echo "    Press Ctrl-C to stop."
+exec swift run prospero serve --auto-migrate --hostname 127.0.0.1 --port 8080
