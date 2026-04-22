@@ -92,10 +92,17 @@ USER_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM users")
 if [[ "$USER_COUNT" -eq 0 ]]; then
     echo ""
     echo "==> No registered users yet. Generating invitation…"
+    INVITE_OUT=$(mktemp)
+    trap 'rm -f "$INVITE_OUT"' EXIT
     swift run Prospero invite \
         --email samalone@llamagraphics.com \
         --base-url "$DEV_URL" \
-        --expires-days 30
+        --expires-days 30 | tee "$INVITE_OUT"
+    INVITE_URL=$(awk '/URL:/ {print $2}' "$INVITE_OUT")
+    if [[ -n "$INVITE_URL" ]] && command -v pbcopy >/dev/null 2>&1; then
+        printf '%s' "$INVITE_URL" | pbcopy
+        echo "==> Invitation URL copied to clipboard."
+    fi
     echo ""
 fi
 
