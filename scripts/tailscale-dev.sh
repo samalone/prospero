@@ -52,7 +52,12 @@ if [[ -z "$FQDN" || "$FQDN" == "null" ]]; then
     exit 1
 fi
 
-DEV_URL="https://$FQDN"
+# Port 8443, not 443. Docker Desktop (and any other local app binding
+# `*:443` on this Mac) would otherwise swallow incoming tailnet traffic
+# before Tailscale Serve could handle it. WebAuthn handles non-default
+# ports as long as the RP origin matches exactly.
+SERVE_PORT=8443
+DEV_URL="https://$FQDN:$SERVE_PORT"
 DATA_DIR="${DATA_DIR:-$HOME/.prospero-dev}"
 mkdir -p "$DATA_DIR"
 
@@ -60,9 +65,9 @@ echo "==> Dev URL:   $DEV_URL"
 echo "==> Data dir:  $DATA_DIR"
 
 # Replace any prior serve config with a single HTTPS → localhost forward.
-echo "==> Configuring Tailscale Serve…"
+echo "==> Configuring Tailscale Serve on port $SERVE_PORT…"
 tailscale serve reset >/dev/null 2>&1 || true
-tailscale serve --bg --https=443 http://127.0.0.1:8080
+tailscale serve --bg --https=$SERVE_PORT http://127.0.0.1:8080
 
 echo ""
 echo "==> Tailscale Serve is forwarding $DEV_URL → http://127.0.0.1:8080"
