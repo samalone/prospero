@@ -12,6 +12,8 @@ struct PageLayout: ResponseGenerator {
     var includeMapScript: Bool = false
     /// Opt in to the range-slider.js custom component (pattern editor).
     var includeRangeSliderScript: Bool = false
+    /// Opt in to calendar.js (tap-to-select behavior on the calendar view).
+    var includeCalendarScript: Bool = false
     @ComponentBuilder var content: () -> Component
 
     private func url(_ path: String) -> String { mountURL(path) }
@@ -28,7 +30,8 @@ struct PageLayout: ResponseGenerator {
                 .if(includeAuthScript, .raw(WebAuthnScript.scriptTag)),
                 .if(includeMapScript, .script(.src(url("/leaflet.js")))),
                 .if(includeMapScript, .script(.src(url("/pattern-map.js")), .attribute(named: "defer"))),
-                .if(includeRangeSliderScript, .script(.src(url("/range-slider.js")), .attribute(named: "defer")))
+                .if(includeRangeSliderScript, .script(.src(url("/range-slider.js")), .attribute(named: "defer"))),
+                .if(includeCalendarScript, .script(.src(url("/calendar.js")), .attribute(named: "defer")))
             ),
             .body(
                 .header(

@@ -107,7 +107,11 @@ func addCalendarRoutes(
 
         allWindows.sort { $0.window.start < $1.window.start }
 
-        return PageLayout(title: "Calendar", pageContext: PageContext(from: context)) {
+        return PageLayout(
+            title: "Calendar",
+            pageContext: PageContext(from: context),
+            includeCalendarScript: true
+        ) {
             CalendarView(
                 windows: allWindows,
                 patterns: patterns,

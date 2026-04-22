@@ -586,17 +586,14 @@ button[type="submit"] {
 }
 
 .calendar-bar:hover .calendar-info-card,
-.calendar-bar:focus .calendar-info-card,
+.calendar-bar.is-selected .calendar-info-card,
+.calendar-bar:focus-visible .calendar-info-card,
 .calendar-bar:focus-within .calendar-info-card {
     opacity: 1;
     pointer-events: auto;
 }
 
-.calendar-bar:focus {
-    outline: 2px solid var(--primary);
-    outline-offset: 1px;
-}
-
+.calendar-bar.is-selected,
 .calendar-bar:focus-visible {
     outline: 2px solid var(--primary);
     outline-offset: 1px;
