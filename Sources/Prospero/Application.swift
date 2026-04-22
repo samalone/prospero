@@ -5,6 +5,7 @@ import FluentSQLiteDriver
 import Foundation
 import Hummingbird
 import HummingbirdAuth
+import HummingbirdCore
 import HummingbirdAuthViews
 import HummingbirdFluent
 import Logging
@@ -332,9 +333,18 @@ struct Serve: AsyncParsableCommand {
             }
         )
 
+        // Defense-in-depth against slow-client and connection-flood attacks
+        // when the server is exposed directly (e.g., the tailscale-dev tether).
+        // The prod nginx-ingress already drops slow reads, but setting these
+        // at the Hummingbird layer means the same protections apply regardless
+        // of how the process is reached.
         var service = Application(
             router: router,
-            configuration: .init(address: .hostname(hostname, port: port))
+            server: .http1(configuration: .init(idleTimeout: .seconds(30))),
+            configuration: .init(
+                address: .hostname(hostname, port: port),
+                availableConnectionsDelegate: MaximumAvailableConnections(512)
+            )
         )
         service.addServices(fluent)
 
