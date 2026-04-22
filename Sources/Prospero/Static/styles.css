@@ -585,11 +585,22 @@ button[type="submit"] {
     z-index: 10;
 }
 
-.calendar-bar:hover .calendar-info-card,
 .calendar-bar.is-selected .calendar-info-card,
 .calendar-bar:focus-visible .calendar-info-card {
     opacity: 1;
     pointer-events: auto;
+}
+
+/* :hover is sticky on iOS Safari — tap-focusing a bar leaves :hover
+   active until the user taps somewhere else, which prevented the
+   tap-to-dismiss gesture from actually hiding the overlay. Scope the
+   hover trigger to devices with a real hover capability (desktop);
+   mobile drives visibility entirely through .is-selected (calendar.js). */
+@media (hover: hover) {
+    .calendar-bar:hover .calendar-info-card {
+        opacity: 1;
+        pointer-events: auto;
+    }
 }
 
 .calendar-bar.is-selected,
