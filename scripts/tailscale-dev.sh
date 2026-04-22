@@ -18,12 +18,10 @@
 #   scripts/tailscale-dev.sh              # starts server + serves over tailnet
 #   tailscale serve reset                 # tears down the proxy when done
 #
-# To seed a registration invitation (run in another terminal):
-#   DATA_DIR=~/.prospero-dev \
-#     swift run prospero invite \
-#       --email you@example.com \
-#       --base-url "https://$(tailscale status --json | jq -r '.Self.DNSName' | sed 's/\.$//')" \
-#       --expires-days 30
+# On first run against a fresh dev database, the script auto-generates
+# an invitation for samalone@llamagraphics.com and prints the URL.
+# Subsequent runs are no-ops on the invite front — the existing user
+# just signs in with their staging passkey.
 #
 # The WebAuthn RP ID is bound to the tailnet hostname, so the passkey
 # you register here is separate from the one on propercourse.app —
@@ -40,6 +38,10 @@ if ! command -v tailscale >/dev/null 2>&1; then
 fi
 if ! command -v jq >/dev/null 2>&1; then
     echo "Error: jq not found. brew install jq." >&2
+    exit 1
+fi
+if ! command -v sqlite3 >/dev/null 2>&1; then
+    echo "Error: sqlite3 CLI not found (it ships with macOS by default)." >&2
     exit 1
 fi
 
@@ -72,6 +74,30 @@ echo ""
 export WEBAUTHN_RP_ID="$FQDN"
 export WEBAUTHN_RP_ORIGIN="$DEV_URL"
 export DATA_DIR
+
+# First-run bootstrap: if there are no registered users, auto-generate
+# an invitation so we don't have to juggle two terminals for it.
+# Running migrations up front gives us a schema to query; migrations
+# are idempotent so a second run is a no-op.
+DB_PATH="$DATA_DIR/prospero.sqlite"
+if [[ ! -f "$DB_PATH" ]] || ! sqlite3 "$DB_PATH" \
+    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='users'" \
+    2>/dev/null | grep -q 1
+then
+    echo "==> Initializing dev database (running migrations)…"
+    swift run prospero migrate
+fi
+
+USER_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM users")
+if [[ "$USER_COUNT" -eq 0 ]]; then
+    echo ""
+    echo "==> No registered users yet. Generating invitation…"
+    swift run prospero invite \
+        --email samalone@llamagraphics.com \
+        --base-url "$DEV_URL" \
+        --expires-days 30
+    echo ""
+fi
 
 echo "==> Starting prospero serve (auto-migrate)…"
 echo "    Press Ctrl-C to stop."
