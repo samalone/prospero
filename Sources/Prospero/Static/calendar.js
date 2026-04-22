@@ -26,7 +26,12 @@
         }
         const wasSelected = bar.classList.contains('is-selected');
         clearSelection();
-        if (!wasSelected) {
+        if (wasSelected) {
+            // Tapping a selected bar dismisses the overlay — blur
+            // releases the tap-focus some mobile browsers leave on
+            // the bar, which would otherwise keep the card visible.
+            bar.blur();
+        } else {
             bar.classList.add('is-selected');
         }
     });

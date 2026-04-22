@@ -587,8 +587,7 @@ button[type="submit"] {
 
 .calendar-bar:hover .calendar-info-card,
 .calendar-bar.is-selected .calendar-info-card,
-.calendar-bar:focus-visible .calendar-info-card,
-.calendar-bar:focus-within .calendar-info-card {
+.calendar-bar:focus-visible .calendar-info-card {
     opacity: 1;
     pointer-events: auto;
 }
