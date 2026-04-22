@@ -1,2 +1,2 @@
 // Bumped in lockstep with k8s/overlays/prod/kustomization.yaml by scripts/bump.sh.
-let prosperoVersion = "0.5.2"
+let prosperoVersion = "0.5.3"
