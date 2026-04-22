@@ -56,6 +56,10 @@ fi
 # `*:443` on this Mac) would otherwise swallow incoming tailnet traffic
 # before Tailscale Serve could handle it. WebAuthn handles non-default
 # ports as long as the RP origin matches exactly.
+#
+# Note: iOS 26.4 has open Tailscale bugs that can prevent Safari from
+# reaching serve endpoints even when the tunnel is up. See
+# docs/mobile-testing.md for context and follow-up options.
 SERVE_PORT=8443
 DEV_URL="https://$FQDN:$SERVE_PORT"
 DATA_DIR="${DATA_DIR:-$HOME/.prospero-dev}"
@@ -65,7 +69,7 @@ echo "==> Dev URL:   $DEV_URL"
 echo "==> Data dir:  $DATA_DIR"
 
 # Replace any prior serve config with a single HTTPS → localhost forward.
-echo "==> Configuring Tailscale Serve on port $SERVE_PORT…"
+echo "==> Configuring Tailscale Serve on port ${SERVE_PORT}…"
 tailscale serve reset >/dev/null 2>&1 || true
 tailscale serve --bg --https=$SERVE_PORT http://127.0.0.1:8080
 
