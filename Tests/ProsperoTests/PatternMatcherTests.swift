@@ -2,8 +2,19 @@ import Foundation
 import Testing
 @testable import Prospero
 
-@Test func basicWindowMatching() {
-    // TODO: Add tests with synthetic HourlyConditions data
+/// Build a plausible forecast slot for a given tick with all-passing
+/// weather. Callers tweak individual values in their own tests.
+private func passingSlot(at tick: Date) -> ForecastSlot {
+    let slotEnd = tick.addingTimeInterval(3600)
+    return ForecastSlot(
+        tick: tick,
+        temperature: PointInTime(time: tick, value: 70),
+        humidity: PointInTime(time: tick, value: 50),
+        windSpeed: PointInTime(time: tick, value: 10),
+        cloudCover: PointInTime(time: tick, value: 10),
+        precipProbability: PrecedingHour(endTime: slotEnd, value: 0),
+        windGusts: PrecedingHour(endTime: slotEnd, value: 12)
+    )
 }
 
 /// Regression test for the daylight-past-sunset bug.
@@ -20,25 +31,15 @@ import Testing
 
     // 2026-07-01 — long summer day in Rhode Island.
     let dayStart = cal.date(from: DateComponents(year: 2026, month: 7, day: 1))!
-    // Sunrise 05:15, sunset 20:15 local (approximate — exact value
-    // doesn't matter, only that the 19:00 and 20:00 hours straddle it).
     let sunrise = cal.date(bySettingHour: 5, minute: 15, second: 0, of: dayStart)!
     let sunset = cal.date(bySettingHour: 20, minute: 15, second: 0, of: dayStart)!
 
-    // Build 24 hourly samples, all weather-passing, all `is_day = true`
-    // at the instant (which the old matcher would have trusted). The
-    // only thing that should knock out a window is the new SolarDay
-    // check: the 19:00 hour covers [19:00, 20:00) — fits. The 20:00
-    // hour covers [20:00, 21:00) — ends after the 20:15 sunset.
-    var conditions: [HourlyConditions] = []
+    // 24 all-passing slots. The daylight check must knock out the
+    // 20:00 slot whose forward hour ends at 21:00 — past sunset.
+    var slots: [ForecastSlot] = []
     for h in 0..<24 {
         let t = cal.date(bySettingHour: h, minute: 0, second: 0, of: dayStart)!
-        conditions.append(HourlyConditions(
-            date: t,
-            temperature: 70, humidity: 50, precipProbability: 0,
-            windSpeed: 10, windGusts: 12, cloudCover: 10,
-            isDaylight: true
-        ))
+        slots.append(passingSlot(at: t))
     }
 
     let pattern = ActivityPattern(
@@ -50,18 +51,62 @@ import Testing
 
     let solar = [SolarDay(dayStart: dayStart, sunrise: sunrise, sunset: sunset)]
     let windows = PatternMatcher().findWindows(
-        pattern: pattern, conditions: conditions,
+        pattern: pattern, conditions: slots,
         solar: solar, timezone: tz
     )
 
-    // Every returned window must end no later than sunset.
     for w in windows {
         #expect(w.end <= sunset,
                 "window ending at \(w.end) bleeds past sunset at \(sunset)")
         #expect(w.start >= sunrise,
                 "window starting at \(w.start) begins before sunrise at \(sunrise)")
     }
-
-    // And we should get at least one window from this sunny day.
     #expect(!windows.isEmpty)
+}
+
+/// Verify that preceding-hour values align with the slot they describe.
+///
+/// Open-Meteo's 14:00 `precipitation_probability` value describes the
+/// interval [13:00, 14:00). In our typed model, that value is shifted
+/// at ingestion onto the slot for 13:00, so the matcher naturally
+/// evaluates the precip probability of the forward hour the slot
+/// represents. This test confirms a shower during [14:00, 15:00) knocks
+/// out the 14:00 slot — not the 13:00 slot as the old code would have.
+@Test func precipProbabilityAlignsWithForwardHour() {
+    let tz = TimeZone(identifier: "America/New_York")!
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = tz
+    let dayStart = cal.date(from: DateComponents(year: 2026, month: 7, day: 1))!
+
+    // Slots at 13:00 and 14:00. The 14:00 slot — describing [14:00, 15:00)
+    // — gets a 90% precip probability; 13:00 stays at 0.
+    let slot13 = passingSlot(at: cal.date(bySettingHour: 13, minute: 0, second: 0, of: dayStart)!)
+    var slot14 = passingSlot(at: cal.date(bySettingHour: 14, minute: 0, second: 0, of: dayStart)!)
+    slot14 = ForecastSlot(
+        tick: slot14.tick,
+        temperature: slot14.temperature,
+        humidity: slot14.humidity,
+        windSpeed: slot14.windSpeed,
+        cloudCover: slot14.cloudCover,
+        precipProbability: PrecedingHour(
+            endTime: slot14.tick.addingTimeInterval(3600), value: 90
+        ),
+        windGusts: slot14.windGusts
+    )
+
+    let pattern = ActivityPattern(
+        name: "Dry activity",
+        latitude: 41.777, longitude: -71.3925,
+        durationHours: 1,
+        precipProbabilityMax: 20
+    )
+
+    let windows = PatternMatcher().findWindows(
+        pattern: pattern, conditions: [slot13, slot14],
+        solar: [], timezone: tz
+    )
+
+    // Only the 13:00 slot should qualify.
+    #expect(windows.count == 1)
+    #expect(windows.first?.start == slot13.tick)
 }
