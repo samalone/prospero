@@ -3,18 +3,41 @@ import Foundation
 import FoundationNetworking
 #endif
 
-/// Hourly weather conditions, enriched with tide status.
-struct HourlyConditions: Sendable {
-    var date: Date
-    var temperature: Double       // Fahrenheit
-    var humidity: Double          // Percentage 0-100
-    var precipProbability: Double // Percentage 0-100
-    var windSpeed: Double         // knots
-    var windGusts: Double         // knots
-    var cloudCover: Double        // Percentage 0-100
-    var isDaylight: Bool
-    var tideStatus: TideStatus = .unknown
-    var tideHeight: Double?  // feet (MLLW datum), nil if no tide data
+/// One hour of forecast data, conventionally representing the forward
+/// interval `[tick, tick + 1h)`. Each field's type announces how the
+/// value relates to time:
+///
+/// - `PointInTime<T>`: an instantaneous value observed at `tick`.
+///   (Open-Meteo calls these "Instant" variables.)
+/// - `PrecedingHour<T>`: an aggregate over `[endTime - 1h, endTime)`.
+///   Each slot's preceding-hour values use `endTime == tick + 1h`, so
+///   they describe the slot itself — values are shifted at ingestion
+///   to line up with the slot they characterize, not the Open-Meteo
+///   timestamp they were published under.
+///
+/// Tide fields are populated by `ForecastAssembler`. They're optional
+/// because a pattern with no tide station has none.
+struct ForecastSlot: Sendable {
+    /// Start of the forward hour this slot represents. Equals the
+    /// Open-Meteo timestamp of the instant-variable observations.
+    let tick: Date
+
+    let temperature: PointInTime<Double>    // Fahrenheit
+    let humidity: PointInTime<Double>       // Percentage 0-100
+    let windSpeed: PointInTime<Double>      // knots
+    let cloudCover: PointInTime<Double>     // Percentage 0-100
+
+    let precipProbability: PrecedingHour<Double>  // Percentage 0-100
+    let windGusts: PrecedingHour<Double>          // knots
+
+    /// Every tide status observed during `[tick, tick + 1h)`. Aggregated
+    /// in `ForecastAssembler` from periodic samples across the slot, so
+    /// a high/low that lands mid-slot is captured (not just the status
+    /// at the opening instant).
+    var tideStatuses: Set<TideStatus>?
+    /// Min and max tide height observed during `[tick, tick + 1h)`,
+    /// taken over NOAA's 6-minute prediction curve. Feet (MLLW datum).
+    var tideHeightRange: ClosedRange<Double>?
 }
 
 /// Sunrise / sunset for a single local calendar day at the forecast
@@ -28,9 +51,17 @@ struct SolarDay: Sendable {
 
 /// Bundle returned by the forecast fetch so callers can get both hourly
 /// weather and daily solar times in a single call.
+///
+/// `timezone` is the IANA zone the forecast is anchored to (returned by
+/// Open-Meteo when the request uses `timezone=auto`). Every `Date` in
+/// `hourly` and `solar` is a correct absolute instant, but downstream
+/// "hour of day", "same local day", and "daylight" logic must evaluate
+/// against this zone — not `Calendar.current`, which silently picks up
+/// the server's zone.
 struct Forecast: Sendable {
-    var hourly: [HourlyConditions]
+    var hourly: [ForecastSlot]
     var solar: [SolarDay]
+    var timezone: TimeZone
 }
 
 /// Client for the Open-Meteo Forecast API.
@@ -98,14 +129,6 @@ actor OpenMeteoClient {
         return topOfThisHour.addingTimeInterval(3600 + publishSkew)
     }
 
-    /// Backwards-compatible shim — hourly conditions only.
-    func fetchHourlyForecast(
-        latitude: Double,
-        longitude: Double
-    ) async throws -> [HourlyConditions] {
-        try await fetchForecast(latitude: latitude, longitude: longitude).hourly
-    }
-
     private func fetchFromAPI(
         latitude: Double,
         longitude: Double
@@ -116,7 +139,7 @@ actor OpenMeteoClient {
             URLQueryItem(name: "longitude", value: String(longitude)),
             URLQueryItem(
                 name: "hourly",
-                value: "temperature_2m,relative_humidity_2m,precipitation_probability,wind_speed_10m,wind_gusts_10m,cloud_cover,is_day"
+                value: "temperature_2m,relative_humidity_2m,precipitation_probability,wind_speed_10m,wind_gusts_10m,cloud_cover"
             ),
             URLQueryItem(name: "daily", value: "sunrise,sunset"),
             URLQueryItem(name: "temperature_unit", value: "fahrenheit"),
@@ -134,9 +157,19 @@ actor OpenMeteoClient {
         }
 
         let decoded = try JSONDecoder().decode(OpenMeteoResponse.self, from: data)
+        // Fail loudly if the reported zone is unparseable. `.current`
+        // would silently re-introduce the server-timezone bug this
+        // refactor fixes; UTC would quietly misinterpret hour-of-day
+        // for any pattern outside UTC. An unparseable IANA identifier
+        // from a successful Open-Meteo response is unexpected enough
+        // that surfacing it is the right call.
+        guard let tz = TimeZone(identifier: decoded.timezone) else {
+            throw OpenMeteoError.invalidTimezone(decoded.timezone)
+        }
         return Forecast(
             hourly: buildHourly(from: decoded),
-            solar: buildSolar(from: decoded)
+            solar: buildSolar(from: decoded),
+            timezone: tz
         )
     }
 
@@ -157,28 +190,45 @@ actor OpenMeteoClient {
         return fallback.date(from: s)
     }
 
-    private func buildHourly(from response: OpenMeteoResponse) -> [HourlyConditions] {
+    private func buildHourly(from response: OpenMeteoResponse) -> [ForecastSlot] {
         let hourly = response.hourly
         let count = hourly.time.count
-        var conditions: [HourlyConditions] = []
-        conditions.reserveCapacity(count)
+        guard count >= 2 else { return [] }
 
-        for i in 0..<count {
-            guard let date = Self.parseTime(hourly.time[i], tz: response.timezone) else {
-                continue
-            }
-            conditions.append(HourlyConditions(
-                date: date,
-                temperature: hourly.temperature_2m[i],
-                humidity: hourly.relative_humidity_2m[i],
-                precipProbability: hourly.precipitation_probability[i],
-                windSpeed: hourly.wind_speed_10m[i],
-                windGusts: hourly.wind_gusts_10m[i],
-                cloudCover: hourly.cloud_cover[i],
-                isDaylight: hourly.is_day[i] == 1
+        // Parse timestamps up front so the per-slot loop can reference
+        // neighbors by index without re-parsing.
+        var ticks: [Date?] = []
+        ticks.reserveCapacity(count)
+        for t in hourly.time {
+            ticks.append(Self.parseTime(t, tz: response.timezone))
+        }
+
+        // Each slot represents the forward hour [ticks[i], ticks[i+1]).
+        // Instant variables come from the record at `i` (Open-Meteo's
+        // convention: observed AT that instant). Preceding-hour
+        // variables come from the record at `i+1` (Open-Meteo's
+        // convention: that record's "preceding hour" is exactly our
+        // slot's forward hour). The last record has no successor so
+        // we emit count - 1 slots.
+        var slots: [ForecastSlot] = []
+        slots.reserveCapacity(count - 1)
+        for i in 0..<(count - 1) {
+            guard let tick = ticks[i], let nextTick = ticks[i + 1] else { continue }
+            slots.append(ForecastSlot(
+                tick: tick,
+                temperature: PointInTime(time: tick, value: hourly.temperature_2m[i]),
+                humidity: PointInTime(time: tick, value: hourly.relative_humidity_2m[i]),
+                windSpeed: PointInTime(time: tick, value: hourly.wind_speed_10m[i]),
+                cloudCover: PointInTime(time: tick, value: hourly.cloud_cover[i]),
+                precipProbability: PrecedingHour(
+                    endTime: nextTick, value: hourly.precipitation_probability[i + 1]
+                ),
+                windGusts: PrecedingHour(
+                    endTime: nextTick, value: hourly.wind_gusts_10m[i + 1]
+                )
             ))
         }
-        return conditions
+        return slots
     }
 
     private func buildSolar(from response: OpenMeteoResponse) -> [SolarDay] {
@@ -208,6 +258,7 @@ actor OpenMeteoClient {
 
 enum OpenMeteoError: Error {
     case httpError(Int)
+    case invalidTimezone(String)
 }
 
 // MARK: - API Response Types
@@ -225,7 +276,6 @@ private struct OpenMeteoResponse: Decodable {
         var wind_speed_10m: [Double]
         var wind_gusts_10m: [Double]
         var cloud_cover: [Double]
-        var is_day: [Int]
     }
 
     struct DailyData: Decodable {

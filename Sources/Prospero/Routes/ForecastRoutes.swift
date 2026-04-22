@@ -27,11 +27,13 @@ func addForecastRoutes(
         let sortParam = request.uri.queryParameters.get("sort") ?? "quality"
         let sortByQuality = sortParam == "quality"
 
-        // Fetch weather data.
-        let weather = try await meteoClient.fetchHourlyForecast(
+        // Fetch weather data (full Forecast — we need solar + timezone
+        // for the daylight and hour-of-day checks).
+        let forecast = try await meteoClient.fetchForecast(
             latitude: pattern.latitude,
             longitude: pattern.longitude
         )
+        let weather = forecast.hourly
 
         // Fetch tide data if a station is configured.
         var tidePredictions: [TidePrediction]?
@@ -54,7 +56,10 @@ func addForecastRoutes(
             tideCurve: tideCurve
         )
 
-        var windows = matcher.findWindows(pattern: pattern, conditions: conditions)
+        var windows = matcher.findWindows(
+            pattern: pattern, conditions: conditions,
+            solar: forecast.solar, timezone: forecast.timezone
+        )
         if sortByQuality {
             windows.sort { $0.quality > $1.quality }
         }

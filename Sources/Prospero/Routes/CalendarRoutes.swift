@@ -77,7 +77,8 @@ func addCalendarRoutes(
                         tideCurve: tideCurve
                     )
                     let windows = matcher.findWindows(
-                        pattern: pattern, conditions: conditions
+                        pattern: pattern, conditions: conditions,
+                        solar: forecast.solar, timezone: forecast.timezone
                     )
                     let wrapped = windows.map {
                         CalendarWindow(
