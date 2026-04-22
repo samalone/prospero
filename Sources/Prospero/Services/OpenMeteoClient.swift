@@ -28,9 +28,17 @@ struct SolarDay: Sendable {
 
 /// Bundle returned by the forecast fetch so callers can get both hourly
 /// weather and daily solar times in a single call.
+///
+/// `timezone` is the IANA zone the forecast is anchored to (returned by
+/// Open-Meteo when the request uses `timezone=auto`). Every `Date` in
+/// `hourly` and `solar` is a correct absolute instant, but downstream
+/// "hour of day", "same local day", and "daylight" logic must evaluate
+/// against this zone — not `Calendar.current`, which silently picks up
+/// the server's zone.
 struct Forecast: Sendable {
     var hourly: [HourlyConditions]
     var solar: [SolarDay]
+    var timezone: TimeZone
 }
 
 /// Client for the Open-Meteo Forecast API.
@@ -136,7 +144,8 @@ actor OpenMeteoClient {
         let decoded = try JSONDecoder().decode(OpenMeteoResponse.self, from: data)
         return Forecast(
             hourly: buildHourly(from: decoded),
-            solar: buildSolar(from: decoded)
+            solar: buildSolar(from: decoded),
+            timezone: TimeZone(identifier: decoded.timezone) ?? .current
         )
     }
 

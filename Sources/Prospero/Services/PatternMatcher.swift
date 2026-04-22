@@ -39,15 +39,34 @@ struct PatternMatcher: Sendable {
     ///
     /// Returns non-overlapping windows of at least `pattern.durationHours` length,
     /// grouped by contiguous qualifying hour ranges.
+    ///
+    /// `solar` is consulted for `requiresDaylight`: each candidate hour must
+    /// fall entirely between sunrise and sunset on the matching local date.
+    /// `timezone` is the pattern's local zone — used for "hour of day" and
+    /// "which solar day" lookups. Both are read from `Forecast` on the
+    /// calling side so they travel with the data they describe.
     func findWindows(
         pattern: ActivityPattern,
-        conditions: [HourlyConditions]
+        conditions: [HourlyConditions],
+        solar: [SolarDay],
+        timezone: TimeZone
     ) -> [MatchWindow] {
         let requiredHours = max(1, Int(ceil(pattern.durationHours)))
 
+        // Index solar days by local calendar date so a 3 AM hour looks up
+        // the previous midnight's entry, not the next one.
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timezone
+        let solarByDay: [Date: SolarDay] = Dictionary(
+            uniqueKeysWithValues: solar.map { (calendar.startOfDay(for: $0.dayStart), $0) }
+        )
+
         // Step 1: Mark each hour as qualifying or not.
         let qualifying = conditions.map { hour in
-            passesConstraints(hour: hour, pattern: pattern)
+            passesConstraints(
+                hour: hour, pattern: pattern,
+                calendar: calendar, solarByDay: solarByDay
+            )
         }
 
         // Step 2: Find contiguous ranges of qualifying hours.
@@ -96,14 +115,23 @@ struct PatternMatcher: Sendable {
 
     private func passesConstraints(
         hour: HourlyConditions,
-        pattern: ActivityPattern
+        pattern: ActivityPattern,
+        calendar: Calendar,
+        solarByDay: [Date: SolarDay]
     ) -> Bool {
-        // Scheduling constraints
-        if pattern.requiresDaylight && !hour.isDaylight {
-            return false
+        // Daylight: the full forward hour [hour.date, hour.date + 1h) must
+        // fall inside [sunrise, sunset] for the pattern's local day. Using
+        // `SolarDay` bounds — not the per-hour `is_day` Instant — so the
+        // window never bleeds past sunset into the calendar's dusk shading.
+        if pattern.requiresDaylight {
+            let hourEnd = hour.date.addingTimeInterval(3600)
+            let dayKey = calendar.startOfDay(for: hour.date)
+            guard let day = solarByDay[dayKey] else { return false }
+            if hour.date < day.sunrise || hourEnd > day.sunset {
+                return false
+            }
         }
 
-        let calendar = Calendar.current
         let hourOfDay = calendar.component(.hour, from: hour.date)
 
         if let earliest = pattern.earliestHour, hourOfDay < earliest {
