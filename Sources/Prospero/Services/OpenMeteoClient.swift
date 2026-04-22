@@ -30,8 +30,14 @@ struct ForecastSlot: Sendable {
     let precipProbability: PrecedingHour<Double>  // Percentage 0-100
     let windGusts: PrecedingHour<Double>          // knots
 
-    var tideStatus: PointInTime<TideStatus>?
-    var tideHeight: PointInTime<Double>?          // feet (MLLW datum)
+    /// Every tide status observed during `[tick, tick + 1h)`. Aggregated
+    /// in `ForecastAssembler` from periodic samples across the slot, so
+    /// a high/low that lands mid-slot is captured (not just the status
+    /// at the opening instant).
+    var tideStatuses: Set<TideStatus>?
+    /// Min and max tide height observed during `[tick, tick + 1h)`,
+    /// taken over NOAA's 6-minute prediction curve. Feet (MLLW datum).
+    var tideHeightRange: ClosedRange<Double>?
 }
 
 /// Sunrise / sunset for a single local calendar day at the forecast

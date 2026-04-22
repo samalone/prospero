@@ -110,3 +110,59 @@ private func passingSlot(at tick: Date) -> ForecastSlot {
     #expect(windows.count == 1)
     #expect(windows.first?.start == slot13.tick)
 }
+
+/// A tide height constraint must consider the entire slot, not just
+/// the opening instant. If the height dips below the requested minimum
+/// partway through the hour, the slot must fail.
+@Test func tideHeightConstraintSpansWholeSlot() {
+    let tz = TimeZone(identifier: "America/New_York")!
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = tz
+    let dayStart = cal.date(from: DateComponents(year: 2026, month: 7, day: 1))!
+
+    // A 13:00 slot whose height range is 2.5..4.0 — the low end dips
+    // below the pattern's 3.0 ft minimum. Old code checked only the
+    // opening instant and would have passed this.
+    var slot = passingSlot(at: cal.date(bySettingHour: 13, minute: 0, second: 0, of: dayStart)!)
+    slot.tideHeightRange = 2.5...4.0
+    slot.tideStatuses = [.rising]
+
+    let pattern = ActivityPattern(
+        name: "Deep-water only",
+        latitude: 41.777, longitude: -71.3925,
+        durationHours: 1,
+        tideHeightMin: 3.0
+    )
+
+    let windows = PatternMatcher().findWindows(
+        pattern: pattern, conditions: [slot],
+        solar: [], timezone: tz
+    )
+    #expect(windows.isEmpty)
+}
+
+/// A `.high` tide requirement must catch an extremum that lands inside
+/// the slot even if the slot's opening instant is still `.rising`.
+@Test func tideStatusDetectsMidSlotExtremum() {
+    let tz = TimeZone(identifier: "America/New_York")!
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = tz
+    let dayStart = cal.date(from: DateComponents(year: 2026, month: 7, day: 1))!
+
+    var slot = passingSlot(at: cal.date(bySettingHour: 13, minute: 0, second: 0, of: dayStart)!)
+    slot.tideHeightRange = 4.0...5.0
+    slot.tideStatuses = [.rising, .high]  // high landed mid-slot
+
+    let pattern = ActivityPattern(
+        name: "At the top",
+        latitude: 41.777, longitude: -71.3925,
+        durationHours: 1,
+        tideRequirement: .high
+    )
+
+    let windows = PatternMatcher().findWindows(
+        pattern: pattern, conditions: [slot],
+        solar: [], timezone: tz
+    )
+    #expect(windows.count == 1)
+}

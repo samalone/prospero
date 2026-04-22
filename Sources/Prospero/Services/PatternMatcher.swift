@@ -173,32 +173,39 @@ struct PatternMatcher: Sendable {
             return false
         }
 
-        // Tide height constraint (min and/or max).
+        // Tide height: the entire slot must stay inside the allowed
+        // band. `tideHeightRange` is min..max across the slot's hour,
+        // so we check both ends against the pattern's bounds.
         if pattern.tideHeightMin != nil || pattern.tideHeightMax != nil {
-            guard let height = slot.tideHeight?.value else { return false }
-            if let minHeight = pattern.tideHeightMin, height < minHeight {
+            guard let range = slot.tideHeightRange else { return false }
+            if let minHeight = pattern.tideHeightMin, range.lowerBound < minHeight {
                 return false
             }
-            if let maxHeight = pattern.tideHeightMax, height > maxHeight {
+            if let maxHeight = pattern.tideHeightMax, range.upperBound > maxHeight {
                 return false
             }
         }
 
-        // Tide status constraint
-        let tideStatus = slot.tideStatus?.value ?? .unknown
+        // Tide status: `tideStatuses` is the set of statuses observed
+        // across the slot. `.rising`/`.falling` demand the slot is
+        // *uniformly* that direction — no moment drifts into a high,
+        // low, or the opposite direction. `.high`/`.low` demand an
+        // extreme lands inside the slot (at least one sample registers
+        // it). `.notLow` excludes any moment near a low.
+        let statuses = slot.tideStatuses ?? [.unknown]
         switch pattern.tideRequirement {
         case .any:
             break
         case .rising:
-            if tideStatus != .rising { return false }
+            if statuses != [.rising] { return false }
         case .falling:
-            if tideStatus != .falling { return false }
+            if statuses != [.falling] { return false }
         case .high:
-            if tideStatus != .high { return false }
+            if !statuses.contains(.high) { return false }
         case .low:
-            if tideStatus != .low { return false }
+            if !statuses.contains(.low) { return false }
         case .notLow:
-            if tideStatus == .low { return false }
+            if statuses.contains(.low) { return false }
         }
 
         return true
@@ -303,8 +310,11 @@ struct PatternMatcher: Sendable {
         let precips = slots.map(\.precipProbability.value)
         let winds = slots.map(\.windSpeed.value)
         let clouds = slots.map(\.cloudCover.value)
-        let tideStatuses = slots.compactMap { $0.tideStatus?.value }
-        let tideHeights = slots.compactMap { $0.tideHeight?.value }
+        let tideStatuses = slots.compactMap(\.tideStatuses).reduce(into: Set<TideStatus>()) {
+            $0.formUnion($1)
+        }
+        let heightLows = slots.compactMap { $0.tideHeightRange?.lowerBound }
+        let heightHighs = slots.compactMap { $0.tideHeightRange?.upperBound }
         return ConditionsSummary(
             tempMin: temps.min() ?? 0,
             tempMax: temps.max() ?? 0,
@@ -313,9 +323,9 @@ struct PatternMatcher: Sendable {
             windSpeedMin: winds.min() ?? 0,
             windSpeedMax: winds.max() ?? 0,
             cloudCoverMax: clouds.max() ?? 0,
-            tideStatuses: Set(tideStatuses),
-            tideHeightMin: tideHeights.min(),
-            tideHeightMax: tideHeights.max()
+            tideStatuses: tideStatuses,
+            tideHeightMin: heightLows.min(),
+            tideHeightMax: heightHighs.max()
         )
     }
 }
