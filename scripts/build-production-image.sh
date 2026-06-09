@@ -8,8 +8,8 @@
 #
 # Prerequisites:
 #   - docker buildx set up for multi-platform builds (native AMD64 via
-#     a remote builder is ideal; see scripts/setup-remote-builder.sh
-#     once we add one)
+#     the shared 'llama' builder is ideal; see
+#     ~/maintenance/scripts/setup-llama-builder.sh)
 #   - logged in to Docker Hub
 #   - yq (brew install yq)
 
@@ -39,15 +39,16 @@ if ! docker buildx version &> /dev/null; then
     exit 1
 fi
 
-# Prefer the named multi-arch builder if it exists — it's the one with a
+# Prefer the shared multi-arch builder 'llama' if it exists — it has a
 # native AMD64 node on the Intel Mac build server, created by
-# scripts/setup-remote-builder.sh. Without it, buildx falls back to
-# qemu emulation for amd64, which stalls and sometimes corrupts heavy
-# Swift compilations.
+# ~/maintenance/scripts/setup-llama-builder.sh. Without it, buildx
+# falls back to emulated amd64 (Rosetta 2 on Docker Desktop, qemu
+# otherwise), which is slow and occasionally breaks heavy Swift
+# compilations.
 #
 # Stop the remote builder on exit so SSH connections don't accumulate;
 # the builder auto-starts on next use.
-BUILDER="prospero-multi-arch"
+BUILDER="llama"
 REMOTE_BUILDER=""
 cleanup() {
     if [[ -n "$REMOTE_BUILDER" ]]; then
@@ -57,14 +58,15 @@ cleanup() {
 trap cleanup EXIT
 
 if docker buildx inspect "$BUILDER" &> /dev/null; then
-    echo "Using remote multi-arch builder '$BUILDER'"
+    echo "Using shared multi-arch builder '$BUILDER'"
     docker buildx use "$BUILDER"
     REMOTE_BUILDER="$BUILDER"
 elif docker buildx inspect multiplatform &> /dev/null; then
-    echo "Using buildx builder 'multiplatform' (qemu — run scripts/setup-remote-builder.sh for native)"
+    echo "WARNING: builder '$BUILDER' not found; using 'multiplatform' (emulated amd64)" >&2
+    echo "         Run ~/maintenance/scripts/setup-llama-builder.sh for native builds." >&2
     docker buildx use multiplatform
 else
-    echo "Creating buildx builder 'multiplatform' (qemu — run scripts/setup-remote-builder.sh for native)..."
+    echo "WARNING: creating emulated builder 'multiplatform' — run ~/maintenance/scripts/setup-llama-builder.sh for native builds." >&2
     docker buildx create --name multiplatform --use
 fi
 

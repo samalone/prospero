@@ -5,9 +5,23 @@ import PlotHTMX
 struct CalendarView: Component {
     var windows: [CalendarWindow]
     var patterns: [ActivityPattern]
-    /// Per-pattern sunrise/sunset keyed by local midnight. Used to shade
-    /// nighttime hours on each track with that pattern's real solar times.
+    /// Per-pattern sunrise/sunset keyed by local midnight. Used to supply
+    /// each match bar with its own location's day/night boundaries — the
+    /// track's background shading switches to these when the bar is
+    /// hovered, focused, or tapped.
     var solarByPattern: [String: PatternSolar] = [:]
+    /// Solar times for the reference location (browser timezone mapped to
+    /// a representative city). Used as the default track shading when no
+    /// bar is focused, so the calendar still has a day/night orientation
+    /// cue without silently attributing one pattern's sun to another's.
+    var referenceSolar: [Date: (sunrise: Date, sunset: Date)] = [:]
+    /// Human label for the reference location, shown in the caption above
+    /// the grid so the user knows whose sun the default shading represents.
+    var referenceLocationLabel: String = "UTC"
+    /// Whether the reference location is the result of a timezone → city
+    /// mapping (true) rather than an exact location (false). When true, the
+    /// caption includes an "approximate" qualifier.
+    var referenceLocationIsApproximate: Bool = false
 
     private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -20,6 +34,15 @@ struct CalendarView: Component {
         f.dateFormat = "h a"
         return f
     }()
+
+    /// Caption text shown when no bar is focused. JS reuses this value to
+    /// restore the caption after a hover/focus ends, so we compute it
+    /// once in Swift instead of re-deriving in JS.
+    private var defaultLabelText: String {
+        referenceLocationIsApproximate
+            ? "\(referenceLocationLabel) (approximate)"
+            : referenceLocationLabel
+    }
 
     /// Get the local midnight for each of the next 14 days starting today.
     private var days: [Date] {
@@ -63,6 +86,21 @@ struct CalendarView: Component {
                 }
                 .class("calendar-legend")
 
+                // Caption: whose sunrise/sunset powers the default shading.
+                // The label updates to a pattern's own location while that
+                // pattern's bar is hovered/focused/tapped (see calendar.js).
+                Div {
+                    Element(name: "span") { Text("Daylight: ") }
+                        .class("calendar-shading-label-prefix")
+                    Element(name: "span") {
+                        Text(defaultLabelText)
+                    }
+                    .class("calendar-shading-label-value")
+                    .attribute(named: "data-default-label", value: defaultLabelText)
+                }
+                .class("calendar-shading-caption")
+                .id("calendar-shading-caption")
+
                 // Calendar grid
                 Div {
                     // Hour header
@@ -90,14 +128,19 @@ struct CalendarView: Component {
                         CalendarDayRow(
                             day: day,
                             windows: windows,
-                            solarByPattern: solarByPattern
+                            solarByPattern: solarByPattern,
+                            referenceSolar: referenceSolar[day]
                         )
                     }
                 }
                 .class("calendar-grid")
                 .id("calendar-content")
                 .hxGet(mountURL("/calendar"))
-                .hxTrigger("every 1800s")
+                // Poll while the tab is active; `refresh` is dispatched by
+                // calendar.js when the page becomes visible again after the
+                // device was asleep (iOS pauses the polling timer, so the
+                // poll alone leaves stale data on return — see calendar.js).
+                .hxTrigger("every 1800s, refresh")
                 .hxSwap(.outerHTML)
                 .hxSelect("#calendar-content")
             }
@@ -164,6 +207,9 @@ struct CalendarDayRow: Component {
     var day: Date
     var windows: [CalendarWindow]
     var solarByPattern: [String: PatternSolar] = [:]
+    /// Sunrise/sunset for the reference location on this day. Used to
+    /// compute the track's default day/night shading. Nil → no shading.
+    var referenceSolar: (sunrise: Date, sunset: Date)?
 
     private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -171,46 +217,26 @@ struct CalendarDayRow: Component {
         return f
     }()
 
-    /// Build a CSS `background` value that shades the nighttime portion
-    /// of a day-track based on the given pattern's sunrise/sunset.
-    /// Returns nil if no solar data is available — the track will use
-    /// the default no-shade background.
-    private func nightShading(forPattern patternName: String) -> String? {
-        guard let solar = solarByPattern[patternName]?.byDay[day] else {
-            return nil
-        }
-        return gradient(sunrise: solar.sunrise, sunset: solar.sunset)
+    /// Fraction of the day (0…1) that a timestamp sits at, measured from
+    /// this row's local midnight. Uses the day's real length (via the
+    /// calendar) so DST-transition days (23 or 25 hours) line up with the
+    /// bar positions in `dayWindows`, which measure the same way. Clamped
+    /// because patterns near the poles can produce sunrise/sunset outside
+    /// the day's window.
+    private func dayFraction(_ t: Date) -> Double {
+        let calendar = Calendar.current
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: day)
+            ?? day.addingTimeInterval(86_400)
+        let dayDuration = nextDay.timeIntervalSince(day)
+        return max(0, min(1, t.timeIntervalSince(day) / dayDuration))
     }
 
-    /// Fallback shading used when no pattern's match window lands on
-    /// this day (so there's no anchor to pick from `anchorByRow`). Uses
-    /// the alphabetically-first pattern's solar data so the band is
-    /// still drawn. Patterns are usually all in the same region, so
-    /// the choice barely matters.
-    private func fallbackNightShading() -> String? {
-        guard let name = solarByPattern.keys.sorted().first else { return nil }
-        return nightShading(forPattern: name)
-    }
-
-    private func gradient(sunrise: Date, sunset: Date) -> String {
-        let dayDuration: TimeInterval = 86_400
-        let sunriseFrac = sunrise.timeIntervalSince(day) / dayDuration
-        let sunsetFrac = sunset.timeIntervalSince(day) / dayDuration
-        // Clamp in case of weird timezone/DST edge cases. At mid-latitudes
-        // this never triggers, but guards against crossing midnight.
-        let rise = max(0.0, min(1.0, sunriseFrac)) * 100
-        let set = max(0.0, min(1.0, sunsetFrac)) * 100
-        // Cool navy-blue (rgb 30, 41, 82) picked by eye, at 9% alpha.
-        let tint = "oklch(0.29 0.08 269.96 / 0.09)"
-        return """
-            linear-gradient(to right, \
-            \(tint) 0%, \
-            \(tint) \(String(format: "%.3f", rise))%, \
-            transparent \(String(format: "%.3f", rise))%, \
-            transparent \(String(format: "%.3f", set))%, \
-            \(tint) \(String(format: "%.3f", set))%, \
-            \(tint) 100%)
-            """
+    /// Percentages (0-100) suitable for writing into CSS custom properties
+    /// that the track/gradient rules consume.
+    private func solarPercentages(_ solar: (sunrise: Date, sunset: Date))
+        -> (sunrise: Double, sunset: Double)
+    {
+        (dayFraction(solar.sunrise) * 100, dayFraction(solar.sunset) * 100)
     }
 
     /// Windows that overlap with this day (local time).
@@ -241,18 +267,20 @@ struct CalendarDayRow: Component {
         let entries = dayWindows
         let (rowForPattern, rowCount) = assignPatternRows(entries)
 
-        // Pick a pattern to anchor each track's night-shading. Uses the
-        // first pattern (by entry order within the day, which matches
-        // assignPatternRows' sort) assigned to that row. When several
-        // patterns share a row without overlapping, they're near enough
-        // that any of them gives essentially the right solar times.
-        var anchorByRow: [Int: String] = [:]
-        for entry in entries {
-            let row = rowForPattern[entry.window.patternName] ?? 0
-            if anchorByRow[row] == nil {
-                anchorByRow[row] = entry.window.patternName
+        // Default shading percentages come from the reference location.
+        // Writing them as CSS custom properties on the track lets a single
+        // gradient rule in styles.css handle both the default state and
+        // the hover/focus override (calendar.js swaps in per-bar values).
+        let trackStyle: String = {
+            guard let solar = referenceSolar else {
+                return ""
             }
-        }
+            let pct = solarPercentages(solar)
+            return String(
+                format: "--sunrise-default: %.3f; --sunset-default: %.3f;",
+                pct.sunrise, pct.sunset
+            )
+        }()
 
         return Div {
             Div { Text(Self.dayFormatter.string(from: day)) }
@@ -260,8 +288,6 @@ struct CalendarDayRow: Component {
 
             Div {
                 for rowIdx in 0..<rowCount {
-                    let shading = anchorByRow[rowIdx].flatMap(nightShading)
-                        ?? fallbackNightShading()
                     Div {
                         // Faint hour gridlines — repeated per track so the
                         // time axis reads correctly on each one.
@@ -284,6 +310,22 @@ struct CalendarDayRow: Component {
                             let cardAnchor: String = entry.startFrac < 0.2
                                 ? "left"
                                 : (entry.startFrac >= 0.65 ? "right" : "center")
+
+                            // Pattern's own sunrise/sunset for this day, if
+                            // known, expressed as % of day. When the bar is
+                            // hovered/focused/tapped, calendar.js copies
+                            // these onto the track so the day/night band
+                            // reflects this match's real location. Empty
+                            // strings are sentinel values — JS skips the
+                            // override and the reference shading stays put.
+                            let patternSolar = solarByPattern[entry.window.patternName]?.byDay[day]
+                            let sunrisePct = patternSolar.map {
+                                String(format: "%.3f", dayFraction($0.sunrise) * 100)
+                            } ?? ""
+                            let sunsetPct = patternSolar.map {
+                                String(format: "%.3f", dayFraction($0.sunset) * 100)
+                            } ?? ""
+
                             Element(name: "div") {
                                 Element(name: "span") {
                                     Text(entry.window.patternName)
@@ -294,6 +336,9 @@ struct CalendarDayRow: Component {
                             }
                             .class("calendar-bar card-anchor-\(cardAnchor)")
                             .attribute(named: "tabindex", value: "0")
+                            .attribute(named: "data-location-label", value: entry.window.patternName)
+                            .attribute(named: "data-sunrise", value: sunrisePct)
+                            .attribute(named: "data-sunset", value: sunsetPct)
                             .attribute(
                                 named: "style",
                                 value: "left: \(leftPct)%; width: \(widthPct)%; background: \(color); --goal-color: \(color)"
@@ -301,10 +346,7 @@ struct CalendarDayRow: Component {
                         }
                     }
                     .class("calendar-day-track")
-                    .attribute(
-                        named: "style",
-                        value: shading.map { "background: \($0)" } ?? ""
-                    )
+                    .attribute(named: "style", value: trackStyle)
                 }
             }
             .class("calendar-day-tracks")
