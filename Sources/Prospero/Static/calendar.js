@@ -149,4 +149,40 @@
             clearShadingOverride();
         }
     });
+
+    // --- refresh on return ------------------------------------------
+    //
+    // The calendar polls every 30 min via htmx (`hx-trigger="every
+    // 1800s, refresh"`), but iOS suspends background tabs and pauses JS
+    // timers, so a page left open on an iPad shows stale data when the
+    // user comes back days later. When the page becomes visible again —
+    // or is restored from Safari's back/forward cache (pageshow with
+    // persisted=true, which doesn't fire visibilitychange) — we ask
+    // htmx to re-fetch by dispatching the `refresh` event the trigger
+    // listens for. We requery #calendar-content each time because htmx
+    // swaps in a fresh element (outerHTML) on every load.
+    //
+    // A threshold avoids refetching on a brief tab switch: the server
+    // pulls live forecasts for every pattern on each load, so we only
+    // refresh when the data could plausibly be stale.
+    const REFRESH_AFTER_MS = 5 * 60 * 1000;
+    let lastLoad = Date.now();
+
+    document.body.addEventListener('htmx:afterSwap', function (event) {
+        if (event.target && event.target.id === 'calendar-content') {
+            lastLoad = Date.now();
+        }
+    });
+
+    function maybeRefreshOnReturn() {
+        if (document.visibilityState !== 'visible') return;
+        if (Date.now() - lastLoad < REFRESH_AFTER_MS) return;
+        const el = document.querySelector('#calendar-content');
+        if (el && window.htmx) window.htmx.trigger(el, 'refresh');
+    }
+
+    document.addEventListener('visibilitychange', maybeRefreshOnReturn);
+    window.addEventListener('pageshow', function (event) {
+        if (event.persisted) maybeRefreshOnReturn();
+    });
 })();

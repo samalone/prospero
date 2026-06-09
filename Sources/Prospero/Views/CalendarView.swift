@@ -140,7 +140,11 @@ struct CalendarView: Component {
                 .class("calendar-grid")
                 .id("calendar-content")
                 .hxGet(mountURL("/calendar"))
-                .hxTrigger("every 1800s")
+                // Poll while the tab is active; `refresh` is dispatched by
+                // calendar.js when the page becomes visible again after the
+                // device was asleep (iOS pauses the polling timer, so the
+                // poll alone leaves stale data on return — see calendar.js).
+                .hxTrigger("every 1800s, refresh")
                 .hxSwap(.outerHTML)
                 .hxSelect("#calendar-content")
             }
