@@ -24,11 +24,15 @@
         try {
             const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
             if (!tz) return;
-            // Derive a path prefix from the current location so the cookie
-            // matches the app's mount path (e.g., /prospero or /) without
-            // needing the server to inject it.
-            const pathPrefix = window.location.pathname.split('/')[1]
-                ? '/' + window.location.pathname.split('/')[1]
+            // Derive the app's mount path from the current location so the
+            // cookie matches it (e.g., /prospero or /) without the server
+            // injecting it. This script only runs on the calendar page, so
+            // the path always ends in /calendar — strip that suffix to get
+            // the mount prefix. Works for root (/), single-segment
+            // (/prospero), and multi-segment (/apps/prospero) mounts.
+            const path = window.location.pathname.replace(/\/$/, '');
+            const pathPrefix = path.endsWith('/calendar')
+                ? path.slice(0, -'/calendar'.length) || '/'
                 : '/';
             document.cookie =
                 'tz=' + encodeURIComponent(tz) +

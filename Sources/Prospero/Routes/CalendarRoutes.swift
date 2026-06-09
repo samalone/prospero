@@ -41,6 +41,18 @@ func addCalendarRoutes(
             .sort(\.$name)
             .all()
 
+        // No patterns → empty state, which renders no tracks. Skip the
+        // cookie resolution, task group, and reference-forecast fetch.
+        if patterns.isEmpty {
+            return PageLayout(
+                title: "Calendar",
+                pageContext: PageContext(from: context),
+                includeCalendarScript: false
+            ) {
+                CalendarView(windows: [], patterns: [])
+            }
+        }
+
         // Resolve a reference location for the calendar's default (idle)
         // day/night shading. Browser-reported IANA timezone → representative
         // city; falls back to UTC if the cookie is missing or unknown. No

@@ -218,11 +218,16 @@ struct CalendarDayRow: Component {
     }()
 
     /// Fraction of the day (0…1) that a timestamp sits at, measured from
-    /// this row's local midnight. Clamped because patterns near the poles
-    /// or across DST transitions can produce sunrise/sunset outside
-    /// the 0-24h window.
+    /// this row's local midnight. Uses the day's real length (via the
+    /// calendar) so DST-transition days (23 or 25 hours) line up with the
+    /// bar positions in `dayWindows`, which measure the same way. Clamped
+    /// because patterns near the poles can produce sunrise/sunset outside
+    /// the day's window.
     private func dayFraction(_ t: Date) -> Double {
-        let dayDuration: TimeInterval = 86_400
+        let calendar = Calendar.current
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: day)
+            ?? day.addingTimeInterval(86_400)
+        let dayDuration = nextDay.timeIntervalSince(day)
         return max(0, min(1, t.timeIntervalSince(day) / dayDuration))
     }
 
