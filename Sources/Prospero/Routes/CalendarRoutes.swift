@@ -41,6 +41,19 @@ func addCalendarRoutes(
             .sort(\.$name)
             .all()
 
+        // Resolve a reference location for the calendar's default (idle)
+        // day/night shading. Browser-reported IANA timezone → representative
+        // city; falls back to UTC if the cookie is missing or unknown. No
+        // geolocation permission is requested — the cookie is set by a JS
+        // snippet in calendar.js using `Intl.DateTimeFormat()`.
+        let tzCookie = request.cookies["tz"]?.value.removingPercentEncoding
+        let referencePlace = TimezoneLocation.resolve(tzCookie)
+        // "Approximate" applies when we successfully mapped a real IANA
+        // zone to a representative city (truthful caveat for the user).
+        // A missing or unknown cookie falls back to UTC, which is labeled
+        // as-is without the qualifier.
+        let referenceIsApproximate = tzCookie.flatMap(TimezoneLocation.lookup) != nil
+
         struct PatternResult: Sendable {
             var windows: [CalendarWindow]
             var solar: PatternSolar
@@ -49,6 +62,23 @@ func addCalendarRoutes(
         // Collect all match windows + per-pattern solar days concurrently.
         var allWindows: [CalendarWindow] = []
         var solarByPattern: [String: PatternSolar] = [:]
+        var referenceSolar: [Date: (sunrise: Date, sunset: Date)] = [:]
+
+        // Reference solar runs alongside pattern fetches so we don't pay
+        // an extra round-trip serially. OpenMeteoClient dedupes by lat/lon,
+        // so if a pattern happens to sit on the same coordinates this
+        // collapses to one upstream request.
+        async let referenceForecast: Forecast? = {
+            do {
+                return try await meteoClient.fetchForecast(
+                    latitude: referencePlace.latitude,
+                    longitude: referencePlace.longitude
+                )
+            } catch {
+                logger.warning("Reference-location solar fetch failed: \(error)")
+                return nil
+            }
+        }()
 
         try await withThrowingTaskGroup(of: PatternResult.self) { group in
             for pattern in patterns {
@@ -107,6 +137,12 @@ func addCalendarRoutes(
 
         allWindows.sort { $0.window.start < $1.window.start }
 
+        if let forecast = await referenceForecast {
+            for d in forecast.solar {
+                referenceSolar[d.dayStart] = (d.sunrise, d.sunset)
+            }
+        }
+
         return PageLayout(
             title: "Calendar",
             pageContext: PageContext(from: context),
@@ -115,7 +151,10 @@ func addCalendarRoutes(
             CalendarView(
                 windows: allWindows,
                 patterns: patterns,
-                solarByPattern: solarByPattern
+                solarByPattern: solarByPattern,
+                referenceSolar: referenceSolar,
+                referenceLocationLabel: referencePlace.label,
+                referenceLocationIsApproximate: referenceIsApproximate
             )
         }
     }

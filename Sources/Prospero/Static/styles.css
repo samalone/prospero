@@ -441,6 +441,19 @@ button[type="submit"] {
     border-radius: var(--radius);
 }
 
+/* Quiet caption above the grid telling the user whose sunrise/sunset
+   the default day/night shading reflects. Updates to the focused bar's
+   location while a bar is hovered/focused/tapped (calendar.js). */
+.calendar-shading-caption {
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.calendar-shading-label-prefix {
+    opacity: 0.85;
+}
+
 .legend-item {
     display: inline-flex;
     align-items: center;
@@ -523,10 +536,36 @@ button[type="submit"] {
 .calendar-day-track {
     position: relative;
     height: 2.25rem;
-    /* Nighttime shading is applied per-track as an inline `background`
-       style, using that pattern's Open-Meteo sunrise/sunset for the
-       day. See CalendarDayRow.nightShading(forPattern:). */
+    /* Day/night shading is driven by two CSS custom properties on the
+       track: --sunrise and --sunset (as unitless 0–100 numbers). They
+       default to --sunrise-default / --sunset-default, which CalendarView
+       writes inline from the reference location's solar times. When a
+       bar is hovered/focused/tapped, calendar.js overrides --sunrise /
+       --sunset with that bar's own pattern solar, so the band reflects
+       the match's real location.
+
+       A gradient of 0 0 / transparent transparent / 0 0 flattens to
+       "no band", which is what we want when no reference solar exists
+       (both defaults are 0). */
+    --sunrise: var(--sunrise-default, 0);
+    --sunset: var(--sunset-default, 0);
+    --night-tint: oklch(0.29 0.08 269.96 / 0.09);
+    background:
+        linear-gradient(
+            to right,
+            var(--night-tint) 0%,
+            var(--night-tint) calc(var(--sunrise) * 1%),
+            transparent calc(var(--sunrise) * 1%),
+            transparent calc(var(--sunset) * 1%),
+            var(--night-tint) calc(var(--sunset) * 1%),
+            var(--night-tint) 100%
+        );
 }
+
+/* When a bar is focused (hover on desktop, keyboard focus, or tap on
+   mobile — see calendar.js for the tap handler), calendar.js copies
+   that bar's data-sunrise/data-sunset onto this track as --sunrise /
+   --sunset. The gradient above re-resolves automatically. */
 
 /* Stacked tracks within one day get a thin separator so the horizontal
    time axis is still readable, but muted enough that a quiet day with
