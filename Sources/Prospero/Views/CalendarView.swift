@@ -93,10 +93,7 @@ struct CalendarView: Component {
                     Element(name: "span") { Text("Daylight: ") }
                         .class("calendar-shading-label-prefix")
                     Element(name: "span") {
-                        Text(referenceLocationLabel)
-                        if referenceLocationIsApproximate {
-                            Text(" (approximate)")
-                        }
+                        Text(defaultLabelText)
                     }
                     .class("calendar-shading-label-value")
                     .attribute(named: "data-default-label", value: defaultLabelText)
@@ -132,8 +129,7 @@ struct CalendarView: Component {
                             day: day,
                             windows: windows,
                             solarByPattern: solarByPattern,
-                            referenceSolar: referenceSolar[day],
-                            referenceLocationLabel: defaultLabelText
+                            referenceSolar: referenceSolar[day]
                         )
                     }
                 }
@@ -214,9 +210,6 @@ struct CalendarDayRow: Component {
     /// Sunrise/sunset for the reference location on this day. Used to
     /// compute the track's default day/night shading. Nil → no shading.
     var referenceSolar: (sunrise: Date, sunset: Date)?
-    /// Human label for the reference location, passed to each bar so JS
-    /// can restore the caption after a hover/focus/tap ends.
-    var referenceLocationLabel: String = ""
 
     private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
