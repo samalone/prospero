@@ -51,6 +51,7 @@ func addMigrations(to fluent: Fluent) async {
     await fluent.migrations.add(AddUserToPatterns())
     await fluent.migrations.add(AddTideHeightMax())
     await fluent.migrations.add(AddPrecipProbabilityMin())
+    await fluent.migrations.add(AddUniqueConstraintToPatterns())
     // Auth library tables
     await addAuthMigrations(to: fluent, userTable: ProsperoUser.schema)
 }
