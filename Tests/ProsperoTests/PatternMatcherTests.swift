@@ -254,6 +254,38 @@ private func passingSlot(at tick: Date) -> ForecastSlot {
     #expect((0.0...1.0).contains(windows.first?.quality ?? -1))
 }
 
+/// When `airQualityMin` sits at or above the 300 scoring ceiling, every
+/// qualifying reading is maximally "bad enough" and the AQI factor must
+/// still contribute a full 1.0 to the average — not be dropped, which
+/// would understate a pattern that also has other constraints.
+@Test func airQualityMinAboveCeilingStillScores() {
+    let tz = TimeZone(identifier: "America/New_York")!
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = tz
+    let dayStart = cal.date(from: DateComponents(year: 2026, month: 7, day: 1))!
+
+    // passingSlot has humidity 50; with humidityMax 100 that scores 0.5.
+    // Adding an above-ceiling AQI min (350, reading 400) must add a 1.0
+    // term, lifting the window average to 0.75 — proof the factor counts.
+    var slot = passingSlot(at: cal.date(bySettingHour: 12, minute: 0, second: 0, of: dayStart)!)
+    slot.airQuality = PointInTime(time: slot.tick, value: 400)
+
+    let pattern = ActivityPattern(
+        name: "Indoor, very bad air",
+        latitude: 41.777, longitude: -71.3925,
+        durationHours: 1,
+        humidityMax: 100,
+        airQualityMin: 350
+    )
+
+    let windows = PatternMatcher().findWindows(
+        pattern: pattern, conditions: [slot],
+        solar: [], timezone: tz
+    )
+    #expect(windows.count == 1)
+    #expect(abs((windows.first?.quality ?? 0) - 0.75) < 0.0001)
+}
+
 /// Past the 7-day AQI horizon a slot carries no AQI reading. A pattern
 /// that constrains air quality must treat that unknown as failing rather
 /// than silently passing — we can't vouch for air we didn't fetch.

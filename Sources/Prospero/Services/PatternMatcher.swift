@@ -314,14 +314,23 @@ struct PatternMatcher: Sendable {
                     }
                 } else if let aqMax = pattern.airQualityMax, aqMax > 0 {
                     scores.append(Swift.max(0, 1.0 - aqi / aqMax))
-                } else if let aqMin = pattern.airQualityMin,
-                          aqMin < Self.airQualityScoreCeiling {
-                    // Clamp to 1.0: AQI runs to 500 but the ceiling is 300,
-                    // so a reading above it would otherwise score > 1 and
-                    // push the window's average past the 0–1 range HuePlacer
-                    // expects.
-                    let ramp = (aqi - aqMin) / (Self.airQualityScoreCeiling - aqMin)
-                    scores.append(Swift.max(0, Swift.min(1, ramp)))
+                } else if let aqMin = pattern.airQualityMin {
+                    if aqMin < Self.airQualityScoreCeiling {
+                        // Clamp to 1.0: AQI runs to 500 but the ceiling is
+                        // 300, so a reading above it would otherwise score
+                        // > 1 and push the window's average past the 0–1
+                        // range HuePlacer expects.
+                        let ramp = (aqi - aqMin) / (Self.airQualityScoreCeiling - aqMin)
+                        scores.append(Swift.max(0, Swift.min(1, ramp)))
+                    } else {
+                        // The requested minimum already sits at/above the
+                        // saturation ceiling, so every qualifying reading is
+                        // maximally "bad enough" → full score. Append it
+                        // explicitly rather than skipping, so the AQI factor
+                        // still counts in the average when other constraints
+                        // are present.
+                        scores.append(1.0)
+                    }
                 }
             }
         }
