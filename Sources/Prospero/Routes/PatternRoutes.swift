@@ -190,9 +190,14 @@ extension String {
     }
 
     /// Parse as Double, returning nil for empty or non-numeric strings.
+    /// Non-finite inputs (`inf`, `nan`, which `Double(_:)` accepts) are
+    /// rejected too — a constraint value must be a real number.
     var toDouble: Double? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : Double(trimmed)
+        guard !trimmed.isEmpty, let value = Double(trimmed), value.isFinite else {
+            return nil
+        }
+        return value
     }
 
     /// Parse as Int, returning nil for empty or non-numeric strings.

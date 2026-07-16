@@ -260,7 +260,7 @@ struct Serve: AsyncParsableCommand {
         // Authenticated routes. Meteo + tide clients are shared across
         // routes so their caches are shared too — a calendar fetch and
         // a forecast fetch for the same location hit the same cache.
-        let meteoClient = OpenMeteoClient()
+        let meteoClient = OpenMeteoClient(logger: logger)
         let tideClient = TideClient()
         let authed = app.group(context: AuthenticatedContext<AppRequestContext>.self)
         addPatternRoutes(to: authed, db: db, logger: logger)

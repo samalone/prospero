@@ -251,7 +251,7 @@ private func passingSlot(at tick: Date) -> ForecastSlot {
         solar: [], timezone: tz
     )
     #expect(windows.count == 1)
-    #expect((windows.first?.quality ?? 0) <= 1.0)
+    #expect((0.0...1.0).contains(windows.first?.quality ?? -1))
 }
 
 /// Past the 7-day AQI horizon a slot carries no AQI reading. A pattern

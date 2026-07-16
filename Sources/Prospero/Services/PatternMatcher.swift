@@ -41,9 +41,9 @@ struct PatternMatcher: Sendable {
 
     /// Reference AQI for scoring a `min`-only air-quality constraint
     /// ("prefer worse air"): readings at or above this score a full 1.0.
-    /// The scale runs to 500, but values above ~300 are rare, so anchoring
-    /// here keeps the quality ramp meaningful. Matches the form slider's
-    /// upper bound.
+    /// Anchored at the "very unhealthy" threshold — once air is this bad,
+    /// worse air doesn't make an indoor choice any more justified, so the
+    /// ramp saturates here rather than at the 500 scale maximum.
     private static let airQualityScoreCeiling = 300.0
 
     /// Find all windows in the forecast that satisfy the pattern's constraints.
@@ -359,7 +359,12 @@ struct PatternMatcher: Sendable {
         let precips = slots.map(\.precipProbability.value)
         let winds = slots.map(\.windSpeed.value)
         let clouds = slots.map(\.cloudCover.value)
-        let aqis = slots.compactMap { $0.airQuality?.value }
+        // Only report an AQI range when the whole summarized window is
+        // covered. A window can straddle the 7-day AQI horizon (for a
+        // pattern that doesn't constrain AQI), and showing a range built
+        // from just the covered hours would misrepresent it as complete.
+        let allSlotsHaveAqi = slots.allSatisfy { $0.airQuality != nil }
+        let aqis = allSlotsHaveAqi ? slots.compactMap { $0.airQuality?.value } : []
         let tideStatuses = slots.compactMap(\.tideStatuses).reduce(into: Set<TideStatus>()) {
             $0.formUnion($1)
         }

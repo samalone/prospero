@@ -149,7 +149,7 @@ struct PatternFormPage {
                         lowName: "air_quality_min", highName: "air_quality_max",
                         lowValue: pattern?.airQualityMin.map { String(Int($0)) },
                         highValue: pattern?.airQualityMax.map { String(Int($0)) },
-                        min: 0, max: 300, step: 5,
+                        min: 0, max: 500, step: 5,
                         labelAny: "Any air quality",
                         labelBelow: "AQI below {high}",
                         labelAbove: "AQI above {low}",

@@ -1168,20 +1168,22 @@ button[type="submit"] {
     );
 }
 
-/* Air quality, US AQI 0–300 (EPA AirNow category colors). Low = clean
-   air (green), high = hazardous (purple), so the fill's direction alone
+/* Air quality, US AQI 0–500 (EPA AirNow category colors). Low = clean
+   air (green), high = hazardous (maroon), so the fill's direction alone
    tells the user which way is better. Colors converted from EPA's sRGB
-   values to OKLCH; stops sit at each category's band. */
+   values to OKLCH; stops sit near each category's band on the 0–500 scale
+   (boundaries at 50/100/150/200/300 → 10/20/30/40/60%). */
 .range-slider--airquality .range-slider-fill {
     background: linear-gradient(
         to right in oklch,
-        oklch(80% 0.27 142.5)   0%,      /*   0 good (green) */
-        oklch(80% 0.27 142.5)   8.33%,   /*  25 good */
-        oklch(97% 0.21 109.76)  25%,     /*  75 moderate (yellow) */
-        oklch(73% 0.19 52.15)   41.67%,  /* 125 USG (orange) */
-        oklch(63% 0.26 29.23)   58.33%,  /* 175 unhealthy (red) */
-        oklch(51% 0.16 323.94)  83.33%,  /* 250 very unhealthy (purple) */
-        oklch(51% 0.16 323.94)  100%     /* 300 very unhealthy */
+        oklch(80% 0.27 142.5)   0%,     /*   0 good (green) */
+        oklch(80% 0.27 142.5)   5%,     /*  25 good */
+        oklch(97% 0.21 109.76)  15%,    /*  75 moderate (yellow) */
+        oklch(73% 0.19 52.15)   25%,    /* 125 USG (orange) */
+        oklch(63% 0.26 29.23)   35%,    /* 175 unhealthy (red) */
+        oklch(51% 0.16 323.94)  50%,    /* 250 very unhealthy (purple) */
+        oklch(38% 0.15 16.79)   80%,    /* 400 hazardous (maroon) */
+        oklch(38% 0.15 16.79)   100%    /* 500 hazardous */
     );
 }
 
@@ -1189,12 +1191,13 @@ button[type="submit"] {
     background: linear-gradient(
         to right in oklch,
         oklch(93% 0.05 142.5)   0%,
-        oklch(93% 0.05 142.5)   8.33%,
-        oklch(95% 0.05 109.76)  25%,
-        oklch(93% 0.05 52.15)   41.67%,
-        oklch(90% 0.06 29.23)   58.33%,
-        oklch(88% 0.05 323.94)  83.33%,
-        oklch(88% 0.05 323.94)  100%
+        oklch(93% 0.05 142.5)   5%,
+        oklch(95% 0.05 109.76)  15%,
+        oklch(93% 0.05 52.15)   25%,
+        oklch(90% 0.06 29.23)   35%,
+        oklch(88% 0.05 323.94)  50%,
+        oklch(85% 0.06 16.79)   80%,
+        oklch(85% 0.06 16.79)   100%
     );
 }
 

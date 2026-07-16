@@ -1,4 +1,5 @@
 import Foundation
+import Logging
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
@@ -94,6 +95,16 @@ actor OpenMeteoClient {
     private var inflight: [String: Task<Forecast, Error>] = [:]
 
     private let publishSkew: TimeInterval = 5 * 60
+
+    /// Optional logger so the best-effort air-quality fetch can surface
+    /// failures (weather failures are logged by the calling route; AQI
+    /// failures are swallowed here to stay non-fatal, so without this they
+    /// would be invisible).
+    private let logger: Logger?
+
+    init(logger: Logger? = nil) {
+        self.logger = logger
+    }
 
     private static let utcCalendar: Calendar = {
         var cal = Calendar(identifier: .gregorian)
@@ -209,17 +220,20 @@ actor OpenMeteoClient {
             URLQueryItem(name: "forecast_days", value: "7"),
         ]
 
+        guard let url = components.url else { return [:] }
+
         // A dedicated, short timeout keeps AQI best-effort: the weather
         // fetch runs concurrently, and we `await` this result before
         // returning, so without a tighter bound a slow air-quality host
         // would stall every forecast up to URLSession's 60s default.
-        var request = URLRequest(url: components.url!)
+        var request = URLRequest(url: url)
         request.timeoutInterval = 8
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse,
                httpResponse.statusCode != 200 {
+                logger?.warning("Air-quality fetch returned HTTP \(httpResponse.statusCode)")
                 return [:]
             }
             let decoded = try JSONDecoder().decode(AirQualityResponse.self, from: data)
@@ -235,6 +249,7 @@ actor OpenMeteoClient {
             }
             return result
         } catch {
+            logger?.warning("Air-quality fetch failed: \(error)")
             return [:]
         }
     }
