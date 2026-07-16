@@ -166,3 +166,123 @@ private func passingSlot(at tick: Date) -> ForecastSlot {
     )
     #expect(windows.count == 1)
 }
+
+/// An air-quality `max` (clean-air) constraint must exclude hours whose
+/// US AQI exceeds the limit and keep the ones below it.
+@Test func airQualityMaxExcludesDirtyHours() {
+    let tz = TimeZone(identifier: "America/New_York")!
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = tz
+    let dayStart = cal.date(from: DateComponents(year: 2026, month: 7, day: 1))!
+
+    // 12:00 clean (AQI 30), 13:00 hazy (AQI 120). Max of 50 keeps only 12:00.
+    var clean = passingSlot(at: cal.date(bySettingHour: 12, minute: 0, second: 0, of: dayStart)!)
+    clean.airQuality = PointInTime(time: clean.tick, value: 30)
+    var dirty = passingSlot(at: cal.date(bySettingHour: 13, minute: 0, second: 0, of: dayStart)!)
+    dirty.airQuality = PointInTime(time: dirty.tick, value: 120)
+
+    let pattern = ActivityPattern(
+        name: "Fresh-air run",
+        latitude: 41.777, longitude: -71.3925,
+        durationHours: 1,
+        airQualityMax: 50
+    )
+
+    let windows = PatternMatcher().findWindows(
+        pattern: pattern, conditions: [clean, dirty],
+        solar: [], timezone: tz
+    )
+    #expect(windows.count == 1)
+    #expect(windows.first?.start == clean.tick)
+}
+
+/// An air-quality `min` (bad-air) constraint selects the opposite: the
+/// hours dirty enough to justify staying indoors.
+@Test func airQualityMinSelectsBadAir() {
+    let tz = TimeZone(identifier: "America/New_York")!
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = tz
+    let dayStart = cal.date(from: DateComponents(year: 2026, month: 7, day: 1))!
+
+    var clean = passingSlot(at: cal.date(bySettingHour: 12, minute: 0, second: 0, of: dayStart)!)
+    clean.airQuality = PointInTime(time: clean.tick, value: 30)
+    var dirty = passingSlot(at: cal.date(bySettingHour: 13, minute: 0, second: 0, of: dayStart)!)
+    dirty.airQuality = PointInTime(time: dirty.tick, value: 160)
+
+    let pattern = ActivityPattern(
+        name: "Indoor workshop",
+        latitude: 41.777, longitude: -71.3925,
+        durationHours: 1,
+        airQualityMin: 100
+    )
+
+    let windows = PatternMatcher().findWindows(
+        pattern: pattern, conditions: [clean, dirty],
+        solar: [], timezone: tz
+    )
+    #expect(windows.count == 1)
+    #expect(windows.first?.start == dirty.tick)
+}
+
+/// A `min`-only air-quality constraint scores "higher AQI is better," but
+/// AQI runs past the 300 scoring ceiling. The per-slot score — and thus
+/// the window quality — must stay within 0…1 so downstream color mapping
+/// isn't over-driven.
+@Test func airQualityMinQualityStaysWithinUnitRange() {
+    let tz = TimeZone(identifier: "America/New_York")!
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = tz
+    let dayStart = cal.date(from: DateComponents(year: 2026, month: 7, day: 1))!
+
+    // AQI 450 sits well above the 300 ceiling; with min 250 the raw ramp
+    // would be (450-250)/(300-250) = 4.0 without clamping.
+    var slot = passingSlot(at: cal.date(bySettingHour: 12, minute: 0, second: 0, of: dayStart)!)
+    slot.airQuality = PointInTime(time: slot.tick, value: 450)
+
+    let pattern = ActivityPattern(
+        name: "Indoor workshop",
+        latitude: 41.777, longitude: -71.3925,
+        durationHours: 1,
+        airQualityMin: 250
+    )
+
+    let windows = PatternMatcher().findWindows(
+        pattern: pattern, conditions: [slot],
+        solar: [], timezone: tz
+    )
+    #expect(windows.count == 1)
+    #expect((windows.first?.quality ?? 0) <= 1.0)
+}
+
+/// Past the 7-day AQI horizon a slot carries no AQI reading. A pattern
+/// that constrains air quality must treat that unknown as failing rather
+/// than silently passing — we can't vouch for air we didn't fetch.
+@Test func airQualityConstraintFailsWhenDataMissing() {
+    let tz = TimeZone(identifier: "America/New_York")!
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = tz
+    let dayStart = cal.date(from: DateComponents(year: 2026, month: 7, day: 1))!
+
+    // No airQuality set → nil, as for any slot beyond the AQI horizon.
+    let slot = passingSlot(at: cal.date(bySettingHour: 12, minute: 0, second: 0, of: dayStart)!)
+
+    let constrained = ActivityPattern(
+        name: "Fresh-air run",
+        latitude: 41.777, longitude: -71.3925,
+        durationHours: 1,
+        airQualityMax: 50
+    )
+    #expect(PatternMatcher().findWindows(
+        pattern: constrained, conditions: [slot], solar: [], timezone: tz
+    ).isEmpty)
+
+    // An unconstrained pattern is unaffected by the missing reading.
+    let unconstrained = ActivityPattern(
+        name: "Anytime",
+        latitude: 41.777, longitude: -71.3925,
+        durationHours: 1
+    )
+    #expect(PatternMatcher().findWindows(
+        pattern: unconstrained, conditions: [slot], solar: [], timezone: tz
+    ).count == 1)
+}

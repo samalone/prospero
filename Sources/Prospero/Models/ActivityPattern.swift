@@ -63,6 +63,15 @@ final class ActivityPattern: Model, @unchecked Sendable {
     @OptionalField(key: "cloud_cover_max")
     var cloudCoverMax: Double?
 
+    // Air quality (US AQI, 0–500; lower is cleaner air). A `max` keeps a
+    // pattern outdoors only when the air is clean enough; a `min` selects
+    // the opposite — e.g. an indoor activity for when the air is bad.
+    @OptionalField(key: "air_quality_min")
+    var airQualityMin: Double?
+
+    @OptionalField(key: "air_quality_max")
+    var airQualityMax: Double?
+
     // Scheduling constraints
 
     @Field(key: "requires_daylight")
@@ -118,6 +127,8 @@ final class ActivityPattern: Model, @unchecked Sendable {
         windSpeedMin: Double? = nil,
         windSpeedMax: Double? = nil,
         cloudCoverMax: Double? = nil,
+        airQualityMin: Double? = nil,
+        airQualityMax: Double? = nil,
         requiresDaylight: Bool = false,
         earliestHour: Int? = nil,
         latestHour: Int? = nil,
@@ -142,6 +153,8 @@ final class ActivityPattern: Model, @unchecked Sendable {
         self.windSpeedMin = windSpeedMin
         self.windSpeedMax = windSpeedMax
         self.cloudCoverMax = cloudCoverMax
+        self.airQualityMin = airQualityMin
+        self.airQualityMax = airQualityMax
         self.requiresDaylight = requiresDaylight
         self.earliestHour = earliestHour
         self.latestHour = latestHour

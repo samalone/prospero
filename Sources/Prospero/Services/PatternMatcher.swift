@@ -27,6 +27,10 @@ struct ConditionsSummary: Sendable {
     var windSpeedMin: Double
     var windSpeedMax: Double
     var cloudCoverMax: Double
+    /// US AQI range across the window. Nil when no slot carried an AQI
+    /// reading (past the 7-day AQI horizon, or the AQI fetch failed).
+    var airQualityMin: Double?
+    var airQualityMax: Double?
     var tideStatuses: Set<TideStatus>
     var tideHeightMin: Double?
     var tideHeightMax: Double?
@@ -34,6 +38,13 @@ struct ConditionsSummary: Sendable {
 
 /// Groups contiguous qualifying hours into match windows.
 struct PatternMatcher: Sendable {
+
+    /// Reference AQI for scoring a `min`-only air-quality constraint
+    /// ("prefer worse air"): readings at or above this score a full 1.0.
+    /// The scale runs to 500, but values above ~300 are rare, so anchoring
+    /// here keeps the quality ramp meaningful. Matches the form slider's
+    /// upper bound.
+    private static let airQualityScoreCeiling = 300.0
 
     /// Find all windows in the forecast that satisfy the pattern's constraints.
     ///
@@ -161,6 +172,17 @@ struct PatternMatcher: Sendable {
             return false
         }
 
+        // Air quality: US AQI, lower is cleaner. When a bound is set the
+        // slot must actually have an AQI reading — past the 7-day AQI
+        // horizon (or when the AQI fetch failed) we can't vouch for the
+        // air either way, so an unknown reading fails a constrained
+        // pattern rather than silently passing it.
+        if pattern.airQualityMin != nil || pattern.airQualityMax != nil {
+            guard let aqi = slot.airQuality?.value else { return false }
+            if let min = pattern.airQualityMin, aqi < min { return false }
+            if let max = pattern.airQualityMax, aqi > max { return false }
+        }
+
         // Preceding-hour constraints — the slot's precipProbability
         // already describes [slot.tick, slot.tick + 1h) because values
         // were shifted at ingestion.
@@ -275,6 +297,33 @@ struct PatternMatcher: Sendable {
             if let cloudMax = pattern.cloudCoverMax, cloudMax > 0 {
                 scores.append(Swift.max(0, 1.0 - slot.cloudCover.value / cloudMax))
             }
+
+            // Air quality: US AQI, lower is cleaner.
+            //  - min + max: center of the band is best.
+            //  - max only: lower is better (cleaner air is nicer).
+            //  - min only: higher is better (e.g. head indoors when the
+            //    air is bad). Scaled against a practical ceiling since the
+            //    0–500 AQI scale rarely exceeds it in the real world.
+            if let aqi = slot.airQuality?.value {
+                if let aqMin = pattern.airQualityMin, let aqMax = pattern.airQualityMax {
+                    let range = aqMax - aqMin
+                    if range > 0 {
+                        let center = (aqMin + aqMax) / 2
+                        let dist = abs(aqi - center) / (range / 2)
+                        scores.append(Swift.max(0, 1.0 - dist))
+                    }
+                } else if let aqMax = pattern.airQualityMax, aqMax > 0 {
+                    scores.append(Swift.max(0, 1.0 - aqi / aqMax))
+                } else if let aqMin = pattern.airQualityMin,
+                          aqMin < Self.airQualityScoreCeiling {
+                    // Clamp to 1.0: AQI runs to 500 but the ceiling is 300,
+                    // so a reading above it would otherwise score > 1 and
+                    // push the window's average past the 0–1 range HuePlacer
+                    // expects.
+                    let ramp = (aqi - aqMin) / (Self.airQualityScoreCeiling - aqMin)
+                    scores.append(Swift.max(0, Swift.min(1, ramp)))
+                }
+            }
         }
 
         guard !scores.isEmpty else { return 1.0 }
@@ -310,6 +359,7 @@ struct PatternMatcher: Sendable {
         let precips = slots.map(\.precipProbability.value)
         let winds = slots.map(\.windSpeed.value)
         let clouds = slots.map(\.cloudCover.value)
+        let aqis = slots.compactMap { $0.airQuality?.value }
         let tideStatuses = slots.compactMap(\.tideStatuses).reduce(into: Set<TideStatus>()) {
             $0.formUnion($1)
         }
@@ -323,6 +373,8 @@ struct PatternMatcher: Sendable {
             windSpeedMin: winds.min() ?? 0,
             windSpeedMax: winds.max() ?? 0,
             cloudCoverMax: clouds.max() ?? 0,
+            airQualityMin: aqis.min(),
+            airQualityMax: aqis.max(),
             tideStatuses: tideStatuses,
             tideHeightMin: heightLows.min(),
             tideHeightMax: heightHighs.max()

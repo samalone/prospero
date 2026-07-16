@@ -404,6 +404,9 @@ struct CalendarInfoCard: Component {
                 infoRow("Rain", "≤\(Int(s.precipProbabilityMax))%")
                 infoRow("Wind", "\(Int(s.windSpeedMin))–\(Int(s.windSpeedMax)) kn")
                 infoRow("Clouds", "≤\(Int(s.cloudCoverMax))%")
+                if let lo = s.airQualityMin, let hi = s.airQualityMax {
+                    infoRow("Air (AQI)", "\(Int(lo))–\(Int(hi))")
+                }
                 if let lo = s.tideHeightMin, let hi = s.tideHeightMax {
                     infoRow("Tide", "\(String(format: "%.1f", lo))–\(String(format: "%.1f", hi)) ft")
                 }

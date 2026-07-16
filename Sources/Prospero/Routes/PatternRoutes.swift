@@ -132,6 +132,8 @@ struct PatternInput: Decodable {
     var wind_speed_min: String?
     var wind_speed_max: String?
     var cloud_cover_max: String?
+    var air_quality_min: String?
+    var air_quality_max: String?
     var requires_daylight: String?
     var earliest_hour: String?
     var latest_hour: String?
@@ -166,6 +168,8 @@ struct PatternInput: Decodable {
         pattern.windSpeedMin = wind_speed_min?.toDouble
         pattern.windSpeedMax = wind_speed_max?.toDouble
         pattern.cloudCoverMax = cloud_cover_max?.toDouble
+        pattern.airQualityMin = air_quality_min?.toDouble
+        pattern.airQualityMax = air_quality_max?.toDouble
         pattern.requiresDaylight = requires_daylight == "true"
         pattern.earliestHour = earliest_hour?.toInt
         pattern.latestHour = latest_hour?.toInt

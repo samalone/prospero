@@ -138,6 +138,24 @@ struct PatternFormPage {
                         labelAny: "Any cloud cover",
                         labelBelow: "Below {high}{unit}"
                     )
+
+                    // Air quality — US AQI, where lower is cleaner. The
+                    // green→red gradient (EPA's standard AQI colors) makes
+                    // the direction obvious. A max keeps outdoor activities
+                    // to clean-air windows; a min picks the opposite, e.g.
+                    // an indoor activity for when the air is bad.
+                    RangeSliderField(
+                        title: "Air quality (US AQI)",
+                        lowName: "air_quality_min", highName: "air_quality_max",
+                        lowValue: pattern?.airQualityMin.map { String(Int($0)) },
+                        highValue: pattern?.airQualityMax.map { String(Int($0)) },
+                        min: 0, max: 300, step: 5,
+                        labelAny: "Any air quality",
+                        labelBelow: "AQI below {high}",
+                        labelAbove: "AQI above {low}",
+                        labelBetween: "AQI {low}–{high}",
+                        colorScheme: "airquality"
+                    )
                 }
 
                 // Scheduling

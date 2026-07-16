@@ -30,6 +30,13 @@ struct ForecastSlot: Sendable {
     let precipProbability: PrecedingHour<Double>  // Percentage 0-100
     let windGusts: PrecedingHour<Double>          // knots
 
+    /// US AQI (0–500, unitless; lower is cleaner). Optional because the
+    /// air-quality API only forecasts 7 days while weather runs 14 — slots
+    /// past the AQI horizon (and every slot if the AQI fetch fails) carry
+    /// none. Comes from Open-Meteo's separate air-quality endpoint, keyed
+    /// by the same instant as the other Instant variables.
+    var airQuality: PointInTime<Double>?
+
     /// Every tide status observed during `[tick, tick + 1h)`. Aggregated
     /// in `ForecastAssembler` from periodic samples across the slot, so
     /// a high/low that lands mid-slot is captured (not just the status
@@ -149,6 +156,13 @@ actor OpenMeteoClient {
             URLQueryItem(name: "forecast_days", value: "14"),
         ]
 
+        // Air quality lives on a separate Open-Meteo endpoint with a
+        // shorter horizon; fetch it alongside the weather so the single
+        // cache entry carries both. A failure here is non-fatal — the
+        // forecast is still useful without AQI, so slots just get no
+        // air-quality value.
+        async let aqiByTick = fetchAirQuality(latitude: latitude, longitude: longitude)
+
         let (data, response) = try await URLSession.shared.data(from: components.url!)
 
         if let httpResponse = response as? HTTPURLResponse,
@@ -167,10 +181,62 @@ actor OpenMeteoClient {
             throw OpenMeteoError.invalidTimezone(decoded.timezone)
         }
         return Forecast(
-            hourly: buildHourly(from: decoded),
+            hourly: buildHourly(from: decoded, airQuality: await aqiByTick),
             solar: buildSolar(from: decoded),
             timezone: tz
         )
+    }
+
+    /// Fetch hourly US AQI from Open-Meteo's air-quality API, returned as
+    /// a lookup keyed by the observation instant so `buildHourly` can
+    /// attach each value to the matching slot. Returns an empty map on any
+    /// error — AQI is supplementary, so its absence must never fail the
+    /// whole forecast.
+    private func fetchAirQuality(
+        latitude: Double,
+        longitude: Double
+    ) async -> [Date: Double] {
+        var components = URLComponents(
+            string: "https://air-quality-api.open-meteo.com/v1/air-quality"
+        )!
+        components.queryItems = [
+            URLQueryItem(name: "latitude", value: String(latitude)),
+            URLQueryItem(name: "longitude", value: String(longitude)),
+            URLQueryItem(name: "hourly", value: "us_aqi"),
+            URLQueryItem(name: "timezone", value: "auto"),
+            // 7 is the API's maximum. Weather runs 14 days; slots past
+            // this horizon simply carry no AQI value.
+            URLQueryItem(name: "forecast_days", value: "7"),
+        ]
+
+        // A dedicated, short timeout keeps AQI best-effort: the weather
+        // fetch runs concurrently, and we `await` this result before
+        // returning, so without a tighter bound a slow air-quality host
+        // would stall every forecast up to URLSession's 60s default.
+        var request = URLRequest(url: components.url!)
+        request.timeoutInterval = 8
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse,
+               httpResponse.statusCode != 200 {
+                return [:]
+            }
+            let decoded = try JSONDecoder().decode(AirQualityResponse.self, from: data)
+            let hourly = decoded.hourly
+            var result: [Date: Double] = [:]
+            for i in 0..<min(hourly.time.count, hourly.us_aqi.count) {
+                // us_aqi can be null for individual hours (Open-Meteo emits
+                // nulls at the edges of its coverage); skip those.
+                guard let aqi = hourly.us_aqi[i],
+                      let tick = Self.parseTime(hourly.time[i], tz: decoded.timezone)
+                else { continue }
+                result[tick] = aqi
+            }
+            return result
+        } catch {
+            return [:]
+        }
     }
 
     // Open-Meteo's "auto" timezone returns times without a timezone
@@ -190,7 +256,10 @@ actor OpenMeteoClient {
         return fallback.date(from: s)
     }
 
-    private func buildHourly(from response: OpenMeteoResponse) -> [ForecastSlot] {
+    private func buildHourly(
+        from response: OpenMeteoResponse,
+        airQuality: [Date: Double]
+    ) -> [ForecastSlot] {
         let hourly = response.hourly
         let count = hourly.time.count
         guard count >= 2 else { return [] }
@@ -225,7 +294,8 @@ actor OpenMeteoClient {
                 ),
                 windGusts: PrecedingHour(
                     endTime: nextTick, value: hourly.wind_gusts_10m[i + 1]
-                )
+                ),
+                airQuality: airQuality[tick].map { PointInTime(time: tick, value: $0) }
             ))
         }
         return slots
@@ -282,5 +352,16 @@ private struct OpenMeteoResponse: Decodable {
         var time: [String]       // "YYYY-MM-DD"
         var sunrise: [String]    // "YYYY-MM-DDTHH:mm"
         var sunset: [String]
+    }
+}
+
+private struct AirQualityResponse: Decodable {
+    var timezone: String
+    var hourly: HourlyData
+
+    struct HourlyData: Decodable {
+        var time: [String]
+        // Open-Meteo can emit null for hours at the edge of its coverage.
+        var us_aqi: [Double?]
     }
 }
