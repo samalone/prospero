@@ -203,7 +203,10 @@ actor OpenMeteoClient {
     /// attach each value to the matching slot. Returns an empty map on any
     /// error — AQI is supplementary, so its absence must never fail the
     /// whole forecast.
-    private func fetchAirQuality(
+    // Nonisolated: this only performs a network request and reads the
+    // immutable `logger` — it touches no mutable actor state, so it need
+    // not hop onto the actor's serial executor.
+    nonisolated private func fetchAirQuality(
         latitude: Double,
         longitude: Double
     ) async -> [Date: Double] {
