@@ -144,6 +144,13 @@ struct WindowCard: Component {
                     label: "Cloud Cover",
                     value: "≤\(Int(window.summary.cloudCoverMax))%"
                 )
+                if let lo = window.summary.airQualityMin,
+                   let hi = window.summary.airQualityMax {
+                    ConditionRow(
+                        label: "Air Quality",
+                        value: "AQI \(Int(lo))–\(Int(hi))"
+                    )
+                }
                 if hasTideData {
                     if let lo = window.summary.tideHeightMin,
                        let hi = window.summary.tideHeightMax {
