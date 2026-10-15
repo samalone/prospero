@@ -133,7 +133,9 @@ First registered user is automatically promoted to admin — this makes bootstra
 
 ## Deployment
 
-Linode Kubernetes (`kubectl --context pc`). Shares a domain (`propercourse.app`, `proper-course.app`, `proper-score.app`) and a TLS cert (`proper-course-tls`) with `course-server` (ProperCourse) and `eyc-weather` via nginx-ingress path-based routing. Shares the PostgreSQL pod in the `life-balance` namespace (`postgres.life-balance.svc.cluster.local:5432`) — cost constraint, can't afford per-app block-storage PG.
+Linode Kubernetes (`kubectl --context pc`). Served at `https://prospero.propercourse.app/prospero` with its own TLS cert (`prospero-tls`). The legacy `/prospero` paths on the shared domains (`propercourse.app`, `proper-course.app`, `proper-score.app`, cert `proper-course-tls` owned by course-server) are 301 redirects to the dedicated host. The dedicated host is described as expedient, not the long-term home. Shares the PostgreSQL pod in the `life-balance` namespace (`postgres.life-balance.svc.cluster.local:5432`) — cost constraint, can't afford per-app block-storage PG.
+
+**Passkeys:** `WEBAUTHN_RP_ID` must stay `propercourse.app` — existing passkeys are bound to it, and the browser accepts it as a parent of the subdomain origin. webauthn-swift matches exactly one `WEBAUTHN_RP_ORIGIN`, so passkey sign-in works only on that host; any other host must redirect, not proxy.
 
 **Layout:**
 
@@ -149,9 +151,10 @@ k8s/
       ingress.yaml             — nginx ingress alongside existing drupal6/registrar apps
       secrets.yaml.template    — 1Password op:// refs; `inject-secrets.sh dev` produces secrets.yaml
       kustomization.yaml
-    prod/                      — pc cluster, three domains, path=/prospero
-      configmap.yaml           — PROSPERO_BASE_PATH=/prospero, RP_ID=propercourse.app
-      ingress.yaml             — three hosts → /prospero, shared proper-course-tls
+    prod/                      — pc cluster, prospero.propercourse.app, path=/prospero
+      configmap.yaml           — PROSPERO_BASE_PATH=/prospero, RP_ID=propercourse.app, origin=new host
+      ingress-subdomain.yaml   — dedicated host → service, own prospero-tls, / → /prospero
+      ingress.yaml             — redirect-only: legacy shared-domain /prospero → new host ($request_uri)
       secrets.yaml.template    — 1Password op:// refs; `inject-secrets.sh prod` produces secrets.yaml
       kustomization.yaml       — image tag pinned here; bumped by scripts/release.sh
 ```
