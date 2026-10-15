@@ -3,11 +3,14 @@ kind: ConfigMap
 metadata:
   name: prospero-config
 data:
-  # Shared-domain prod: mount under /prospero so the ingress can route
-  # sibling apps under other path prefixes.
+  # Mounted under /prospero so links from the old shared-domain URLs map
+  # 1:1 onto the dedicated host (see ingress.yaml / ingress-subdomain.yaml).
   PROSPERO_BASE_PATH: "/prospero"
-  # WebAuthn relying party is the canonical domain. Passkeys are bound
-  # to the RP ID, so changing this invalidates existing passkeys.
+  # WebAuthn relying party stays the registrable parent domain. Passkeys are
+  # bound to the RP ID, so changing it invalidates existing passkeys; the
+  # browser accepts a parent-domain RP ID from a subdomain origin.
   WEBAUTHN_RP_ID: "propercourse.app"
-  WEBAUTHN_RP_ORIGIN: "https://propercourse.app"
-  BASE_URL: "https://propercourse.app/prospero"
+  # webauthn-swift matches one exact origin, so passkey sign-in works only
+  # on this host — which is why the old routes redirect rather than proxy.
+  WEBAUTHN_RP_ORIGIN: "https://prospero.propercourse.app"
+  BASE_URL: "https://prospero.propercourse.app/prospero"

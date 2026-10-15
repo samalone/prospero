@@ -1,9 +1,16 @@
+# Legacy shared-domain routes, now redirect-only. The permanent-redirect
+# annotation applies to every rule in this object, so nothing that proxies
+# to the service may live here. $request_uri keeps the /prospero/... path and
+# query, which line up 1:1 with the dedicated host's mount path.
+#
+# The propercourse.app rule is removed by the ProperCourse apex cutover
+# (the apex moves to static hosting with its own forwarding page).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: prospero
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/permanent-redirect: "https://prospero.propercourse.app$request_uri"
 spec:
   ingressClassName: nginx
   tls:
@@ -11,8 +18,7 @@ spec:
         - propercourse.app
         - proper-course.app
         - proper-score.app
-      # Shared TLS secret — cert-manager issues once, ProperCourse,
-      # eyc-weather, and Prospero all reference it.
+      # Owned by course-server's ingress; referenced, never modified.
       secretName: proper-course-tls
   rules:
     - host: propercourse.app

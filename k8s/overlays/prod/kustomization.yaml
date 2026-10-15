@@ -8,6 +8,7 @@ resources:
   - configmap.yaml
   - secrets.yaml
   - ingress.yaml
+  - ingress-subdomain.yaml
 # Production image tag. Bumped by scripts/release.sh from the CLI.
 images:
   - name: llamagraphics/prospero

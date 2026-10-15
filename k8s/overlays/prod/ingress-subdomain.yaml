@@ -1,0 +1,28 @@
+# Dedicated host for Prospero, ahead of propercourse.app moving off the
+# cluster to static hosting. The app stays mounted at /prospero (same image
+# and cookie path as the shared-domain routes); app-root redirects the bare
+# host to it. Own TLS secret — proper-course-tls belongs to course-server.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prospero-subdomain
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/app-root: /prospero
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - prospero.propercourse.app
+      secretName: prospero-tls
+  rules:
+    - host: prospero.propercourse.app
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: prospero
+                port:
+                  number: 80
