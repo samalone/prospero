@@ -59,7 +59,7 @@ actor TideStationsService {
         )!
         var request = URLRequest(url: url)
         request.timeoutInterval = 30
-        request.setValue("Prospero/1.0 (+https://propercourse.app/prospero)", forHTTPHeaderField: "User-Agent")
+        request.setValue("Prospero/1.0 (+https://prospero.propercourse.app/prospero)", forHTTPHeaderField: "User-Agent")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, 200..<300 ~= http.statusCode else {
