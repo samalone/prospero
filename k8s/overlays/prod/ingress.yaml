@@ -3,8 +3,8 @@
 # to the service may live here. $request_uri keeps the /prospero/... path and
 # query, which line up 1:1 with the dedicated host's mount path.
 #
-# The propercourse.app rule is removed by the ProperCourse apex cutover
-# (the apex moves to static hosting with its own forwarding page).
+# propercourse.app is no longer here: the apex is static hosting (GitHub
+# Pages), whose own forwarding page sends /prospero/... to the new host.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -15,22 +15,11 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - propercourse.app
         - proper-course.app
         - proper-score.app
       # Owned by course-server's ingress; referenced, never modified.
       secretName: proper-course-tls
   rules:
-    - host: propercourse.app
-      http:
-        paths:
-          - pathType: Prefix
-            path: /prospero
-            backend:
-              service:
-                name: prospero
-                port:
-                  number: 80
     - host: proper-course.app
       http:
         paths:
